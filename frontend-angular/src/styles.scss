@@ -1,0 +1,356 @@
+// ============================================================
+// Thème Demathieu & Bard — Angular Material + CSS Custom Props
+// Couleurs : Navy #1B3A5C | Orange #E8440E
+// ============================================================
+
+@use '@angular/material' as mat;
+
+// ── Palette Navy (couleur primaire DB) ──────────────────────
+$db-navy-palette: (
+  50:  #e4ebf3,
+  100: #bbcfdf,
+  200: #8fb0ca,
+  300: #6390b4,
+  400: #4179a4,
+  500: #1B3A5C,
+  600: #183456,
+  700: #142c4c,
+  800: #102443,
+  900: #081633,
+  A100: #70b3ff,
+  A200: #3d9bff,
+  A400: #0a83ff,
+  A700: #0076f0,
+  contrast: (
+    50:  rgba(0,0,0,.87),
+    100: rgba(0,0,0,.87),
+    200: rgba(0,0,0,.87),
+    300: #fff,
+    400: #fff,
+    500: #fff,
+    600: #fff,
+    700: #fff,
+    800: #fff,
+    900: #fff,
+    A100: rgba(0,0,0,.87),
+    A200: #fff,
+    A400: #fff,
+    A700: #fff,
+  )
+);
+
+// ── Palette Orange (couleur accent/CTA DB) ──────────────────
+$db-orange-palette: (
+  50:  #fde9e3,
+  100: #f9c8b8,
+  200: #f5a389,
+  300: #f07e59,
+  400: #ec6236,
+  500: #E8440E,
+  600: #e53e0c,
+  700: #e03509,
+  800: #da2c07,
+  900: #d01e03,
+  A100: #ffddd5,
+  A200: #ffb0a3,
+  A400: #ff8271,
+  A700: #ff6c58,
+  contrast: (
+    50:  rgba(0,0,0,.87),
+    100: rgba(0,0,0,.87),
+    200: rgba(0,0,0,.87),
+    300: rgba(0,0,0,.87),
+    400: #fff,
+    500: #fff,
+    600: #fff,
+    700: #fff,
+    800: #fff,
+    900: #fff,
+    A100: rgba(0,0,0,.87),
+    A200: rgba(0,0,0,.87),
+    A400: #fff,
+    A700: #fff,
+  )
+);
+
+// ── Application du thème Material ───────────────────────────
+@include mat.core();
+
+$btp-primary:   mat.define-palette($db-navy-palette,   500, 300, 900);
+$btp-accent:    mat.define-palette($db-orange-palette,  500, 300, 700);
+$btp-warn:      mat.define-palette(mat.$red-palette);
+
+$btp-theme: mat.define-light-theme((
+  color: (
+    primary: $btp-primary,
+    accent:  $btp-accent,
+    warn:    $btp-warn,
+  ),
+  typography: mat.define-typography-config(
+    $font-family: "'Barlow', Roboto, 'Helvetica Neue', sans-serif",
+    $headline-5: mat.define-typography-level(1.5rem,  1.3, 700),
+    $headline-6: mat.define-typography-level(1.25rem, 1.4, 600),
+    $subtitle-1: mat.define-typography-level(1rem,    1.5, 500),
+    $body-1:     mat.define-typography-level(.9375rem, 1.6, 400),
+    $body-2:     mat.define-typography-level(.875rem,  1.5, 400),
+    $button:     mat.define-typography-level(.875rem,  1,   600, $letter-spacing: .04em),
+  ),
+  density: 0,
+));
+
+@include mat.all-component-themes($btp-theme);
+
+// ============================================================
+// Variables CSS globales (DB Design System)
+// ============================================================
+:root {
+  // Couleurs de marque
+  --db-navy:          #1B3A5C;
+  --db-navy-dark:     #0F2540;
+  --db-navy-darker:   #091B2E;
+  --db-orange:        #E8440E;
+  --db-orange-hover:  #C93A0B;
+  --db-orange-light:  #FDE9E3;
+
+  // Backgrounds
+  --db-bg:            #F3F5F8;
+  --db-bg-white:      #FFFFFF;
+  --db-bg-card:       #FFFFFF;
+
+  // Texte
+  --db-text:          #1A2332;
+  --db-text-secondary:#5A6A7E;
+  --db-text-light:    #8FA0B4;
+  --db-text-on-dark:  #FFFFFF;
+
+  // Bordures et ombres
+  --db-border:        #DDE3EC;
+  --db-border-light:  #EDF2F7;
+  --db-shadow-sm:     0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --db-shadow-md:     0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
+  --db-shadow-lg:     0 10px 30px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.06);
+
+  // Layout
+  --db-sidebar-width:  264px;
+  --db-navbar-height:  64px;
+  --db-border-radius:  5px;
+  --db-border-radius-lg: 10px;
+
+  // Typographie display (Barlow Condensed)
+  --db-font-body:    'Barlow', sans-serif;
+  --db-font-display: 'Barlow Condensed', sans-serif;
+
+  // Status colors
+  --db-success: #22C55E;
+  --db-warning: #F59E0B;
+  --db-error:   #EF4444;
+  --db-info:    #3B82F6;
+
+  // BTP status colors (plan statuts)
+  --btp-brouillon: #6B7280;
+  --btp-en-controle: #B45309;
+  --btp-valide: #15803D;
+  --btp-refuse: #B91C1C;
+  --btp-vise: #1D4ED8;
+}
+
+// ============================================================
+// Reset & Base
+// ============================================================
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--db-font-body);
+  font-size: 15px;
+  background-color: var(--db-bg);
+  color: var(--db-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ============================================================
+// Utilitaires globaux
+// ============================================================
+
+// Bouton primaire orange DB
+.db-btn-primary {
+  background-color: var(--db-orange) !important;
+  color: #fff !important;
+  border-radius: var(--db-border-radius) !important;
+  font-weight: 600 !important;
+  letter-spacing: .06em !important;
+  transition: background-color .2s ease !important;
+
+  &:hover:not([disabled]) {
+    background-color: var(--db-orange-hover) !important;
+  }
+}
+
+// Bouton secondaire navy DB
+.db-btn-secondary {
+  background-color: var(--db-navy) !important;
+  color: #fff !important;
+  border-radius: var(--db-border-radius) !important;
+  font-weight: 600 !important;
+  letter-spacing: .06em !important;
+  transition: background-color .2s ease !important;
+
+  &:hover:not([disabled]) {
+    background-color: var(--db-navy-dark) !important;
+  }
+}
+
+// Bouton outline navy
+.db-btn-outline {
+  border: 2px solid var(--db-navy) !important;
+  color: var(--db-navy) !important;
+  border-radius: var(--db-border-radius) !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+  letter-spacing: .06em !important;
+  transition: all .2s ease !important;
+
+  &:hover:not([disabled]) {
+    background-color: var(--db-navy) !important;
+    color: #fff !important;
+  }
+}
+
+// Cards
+.db-card {
+  background: var(--db-bg-card);
+  border-radius: var(--db-border-radius-lg);
+  box-shadow: var(--db-shadow-sm);
+  border: 1px solid var(--db-border-light);
+  transition: box-shadow .2s ease;
+
+  &:hover { box-shadow: var(--db-shadow-md); }
+}
+
+// Badges de rôle
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+
+  &.ADMIN             { background: #FEE2E2; color: #991B1B; }
+  &.CHEF_PROJET       { background: #DBEAFE; color: #1E40AF; }
+  &.PROJETEUR         { background: #D1FAE5; color: #065F46; }
+  &.EMETTEUR          { background: #E0E7FF; color: #3730A3; }
+  &.CONTROLEUR_INTERNE{ background: #FEF3C7; color: #92400E; }
+  &.CONTROLEUR_EXTERNE{ background: #FCE7F3; color: #831843; }
+  &.RESPONSABLE_VISA  { background: #ECFDF5; color: #047857; }
+}
+
+// Status badges
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 600;
+
+  &.actif   { background: #D1FAE5; color: #065F46; }
+  &.inactif { background: #FEE2E2; color: #991B1B; }
+}
+
+// Mat-form-field overrides
+.mat-mdc-form-field {
+  width: 100%;
+
+  .mdc-text-field--outlined .mdc-notched-outline__leading { border-radius: 4px 0 0 4px !important; }
+  .mdc-text-field--outlined .mdc-notched-outline__trailing { border-radius: 0 4px 4px 0 !important; }
+}
+
+// Snackbar DB
+.snack-success { --mdc-snackbar-container-color: #065F46 !important; }
+.snack-error   { --mdc-snackbar-container-color: #991B1B !important; }
+
+// Page title style
+.page-header {
+  margin-bottom: 24px;
+
+  h1 {
+    font-family: var(--db-font-display);
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: var(--db-navy);
+    margin: 0 0 4px;
+    letter-spacing: -.01em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  p {
+    color: var(--db-text-secondary);
+    margin: 0;
+    font-size: .875rem;
+  }
+}
+
+// Barlow Condensed helper
+.display-font {
+  font-family: var(--db-font-display) !important;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+
+// ── Titres de page dans les composants (classe locale .page-title)
+// Appliqué automatiquement via le CSS global
+.page-title {
+  font-family: var(--db-font-display) !important;
+  font-size: 1.85rem !important;
+  font-weight: 800 !important;
+  color: var(--db-text) !important;
+  margin: 0 0 2px !important;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  line-height: 1.1;
+}
+
+// Mat table overrides
+.mat-mdc-table {
+  border-radius: var(--db-border-radius-lg) !important;
+  overflow: hidden;
+  box-shadow: var(--db-shadow-sm) !important;
+
+  .mat-mdc-header-row {
+    background-color: #F8FAFC !important;
+
+    .mat-mdc-header-cell {
+      font-weight: 600;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--db-text-secondary);
+    }
+  }
+
+  .mat-mdc-row {
+    transition: background-color .15s ease;
+    &:hover { background-color: #F8FAFC !important; }
+  }
+}
+
+// Native select — forcer le rendu natif (Angular Material applique appearance:none globalement)
+select.field-select,
+select[class*="field-"] {
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+  cursor: pointer;
+}
+
+// Scrollbar custom
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #A0AEB9; }

@@ -1,0 +1,919 @@
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, RouterModule } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
+import { forkJoin } from 'rxjs';
+import { PlanService } from '../../../core/services/plan.service';
+import { ControleService, CreateControlePayload, DecisionPayload } from '../../../core/services/controle.service';
+import { UserService } from '../../../core/services/user.service';
+import { Plan, STATUT_PLAN, TYPE_PLAN, Version, getStatutPlan } from '../../../core/models/plan.model';
+import { Controle, DECISION_META } from '../../../core/models/controle.model';
+import { UtilisateurDto } from '../../../core/models/user.model';
+import { AuthService } from '../../../core/auth/auth.service';
+
+@Component({
+  selector: 'app-plan-detail',
+  standalone: true,
+  imports: [
+    CommonModule, RouterModule, ReactiveFormsModule,
+    MatIconModule, MatButtonModule, MatTooltipModule,
+    MatProgressSpinnerModule, MatSnackBarModule,
+  ],
+  template: `
+<div class="page-wrap">
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb">
+    <a routerLink="/affaires" class="bc-link">Affaires</a>
+    <mat-icon class="bc-sep">chevron_right</mat-icon>
+    @if (plan()?.affaireId) {
+      <a [routerLink]="['/affaires', plan()!.affaireId]" class="bc-link">Affaire</a>
+      <mat-icon class="bc-sep">chevron_right</mat-icon>
+    }
+    <span class="bc-cur">{{ plan()?.nom ?? '…' }}</span>
+  </div>
+
+  @if (loading()) {
+    <div class="loader-wrap"><mat-spinner diameter="36" /></div>
+  } @else {
+  @if (plan(); as p) {
+
+    <!-- ── Plan Header ──────────────────────────────────────────── -->
+    <div class="plan-header">
+      <div class="plan-meta">
+        <div class="plan-badges">
+          <span class="type-badge"
+                [style.color]="TYPE_PLAN[p.typePlan].color"
+                [style.background]="TYPE_PLAN[p.typePlan].bg">
+            {{ p.typePlan }} — {{ TYPE_PLAN[p.typePlan].label }}
+          </span>
+          @if (p.derniereVersion) {
+            <span class="indice-tag">Indice {{ p.derniereVersion.indice }}</span>
+          }
+          @if (p.statut === 'A_MODIFIER' || p.statut === 'DEFAVORABLE') {
+            <span class="refuse-tag">
+              <mat-icon>warning</mat-icon>
+              {{ p.statut === 'A_MODIFIER' ? 'À modifier' : 'Défavorable' }}
+            </span>
+          }
+          @if (p.statut === 'VISE') {
+            <span class="vise-tag">
+              <mat-icon>verified</mat-icon> Visé — Prêt pour exécution
+            </span>
+          }
+        </div>
+        <h1 class="plan-nom">{{ p.nom }}</h1>
+        <p class="plan-affaire-ref">Affaire : <code>{{ p.affaireId | slice:0:16 }}…</code></p>
+      </div>
+      <div class="header-right">
+        <!-- Workflow BTP simplifié -->
+        <div class="statut-pipeline">
+          @for (step of statutSteps; track step.key) {
+            <div class="pipeline-step"
+                 [class.done]="getStatutPlan(p.statut).step > step.step"
+                 [class.current]="p.statut === step.key"
+                 [class.refused]="(p.statut === 'A_MODIFIER' || p.statut === 'DEFAVORABLE') && step.key === 'EN_CONTROLE_INTERNE'">
+              <div class="step-node">
+                @if (getStatutPlan(p.statut).step > step.step) {
+                  <mat-icon class="step-check">check</mat-icon>
+                } @else if (p.statut === step.key) {
+                  <div class="step-pulse"></div>
+                }
+              </div>
+              <span class="step-name">{{ step.label }}</span>
+              <span class="step-role">{{ step.role }}</span>
+            </div>
+            @if (!$last) {
+              <div class="step-connector"
+                   [class.done]="getStatutPlan(p.statut).step > step.step"></div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Actions bar ─────────────────────────────────────────── -->
+    <div class="actions-bar">
+      @if (canEmettre(p)) {
+        <button class="btn-action primary" (click)="emettre()">
+          <mat-icon>publish</mat-icon> Émettre (Indice {{ nextIndice(p) }})
+        </button>
+      }
+      @if (canSoumettre(p)) {
+        <button class="btn-action primary" (click)="soumettre()">
+          <mat-icon>send</mat-icon> Soumettre au contrôle interne
+        </button>
+      }
+      @if (canAddVersion(p)) {
+        <button class="btn-action" (click)="openVersionDialog()">
+          <mat-icon>add</mat-icon> Nouvelle version
+        </button>
+      }
+      @if (canControler(p)) {
+        <button class="btn-action" (click)="openControleDialog()">
+          <mat-icon>fact_check</mat-icon> Créer un contrôle
+        </button>
+      }
+      @if (canViser(p)) {
+        <button class="btn-action accent" (click)="applyVisa()">
+          <mat-icon>verified</mat-icon> Apposer le visa
+        </button>
+      }
+    </div>
+
+    <!-- ── Versions Timeline ────────────────────────────────────── -->
+    <h2 class="section-title">Versions</h2>
+    <div class="versions-list">
+      @for (v of p.versions; track v.idVersion; let last = $last) {
+        <div class="version-card" [class.latest]="last">
+          <div class="ver-left">
+            <div class="ver-indice">{{ v.indice }}</div>
+            @if (!last) { <div class="ver-line"></div> }
+          </div>
+          <div class="ver-body">
+            <div class="ver-header">
+              <span class="ver-title">Version {{ v.numeroVersion }}</span>
+              <span class="ver-date">{{ v.dateUpload | date:'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+            @if (v.commentaire) {
+              <p class="ver-comment">{{ v.commentaire }}</p>
+            }
+            @if (v.fichierUrl) {
+              <a [href]="v.fichierUrl" class="ver-file" target="_blank">
+                <mat-icon>attach_file</mat-icon> Voir le fichier
+              </a>
+            }
+            <span class="ver-by">Par : {{ v.uploadePar }}</span>
+          </div>
+          <!-- Contrôles de cette version -->
+          @if (controlesByVersion(v.idVersion).length) {
+            <div class="ver-controles">
+              @for (c of controlesByVersion(v.idVersion); track c.id) {
+                <div class="controle-chip"
+                     [style.color]="DECISION_META[c.decision].color"
+                     [style.borderColor]="DECISION_META[c.decision].color + '44'">
+                  <mat-icon class="chip-icon">{{ DECISION_META[c.decision].icon }}</mat-icon>
+                  <span>{{ c.typeControle === 'INTERNE' ? 'CI' : 'CE' }} — {{ DECISION_META[c.decision].label }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @empty {
+        <p class="text-muted">Aucune version disponible.</p>
+      }
+    </div>
+
+    <!-- ── Contrôles ─────────────────────────────────────────────── -->
+    @if (controles().length) {
+      <h2 class="section-title" style="margin-top:28px;">Contrôles</h2>
+      <div class="table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Version</th>
+              <th>Décision</th>
+              <th>Remarque</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of controles(); track c.id) {
+              <tr class="data-row">
+                <td>
+                  <span class="type-tag">{{ c.typeControle }}</span>
+                </td>
+                <td>
+                  <span class="ver-ref">{{ versionLabel(c.versionId) }}</span>
+                </td>
+                <td>
+                  <span class="decision-badge"
+                        [style.color]="DECISION_META[c.decision].color"
+                        [style.background]="DECISION_META[c.decision].color + '18'">
+                    <mat-icon class="dec-icon">{{ DECISION_META[c.decision].icon }}</mat-icon>
+                    {{ DECISION_META[c.decision].label }}
+                  </span>
+                </td>
+                <td class="text-muted">{{ c.remarque || '—' }}</td>
+                <td class="text-muted">{{ c.dateControle | date:'dd/MM/yyyy' }}</td>
+                <td (click)="$event.stopPropagation()">
+                  @if (canDecide(c)) {
+                    <div class="row-actions-inline">
+                      @if (c.typeControle === 'INTERNE') {
+                        <button class="dec-btn valide" (click)="decide(c, 'BPE')" matTooltip="Bon Pour Exécution">
+                          <mat-icon>check</mat-icon>
+                        </button>
+                        <button class="dec-btn bao" (click)="decide(c, 'BAO')" matTooltip="Bon Avec Observations">
+                          <mat-icon>task_alt</mat-icon>
+                        </button>
+                        <button class="dec-btn refuse" (click)="decide(c, 'A_MODIFIER')" matTooltip="À modifier">
+                          <mat-icon>edit</mat-icon>
+                        </button>
+                      } @else {
+                        <button class="dec-btn valide" (click)="decide(c, 'FAVORABLE')" matTooltip="Favorable">
+                          <mat-icon>verified</mat-icon>
+                        </button>
+                        <button class="dec-btn refuse" (click)="decide(c, 'DEFAVORABLE')" matTooltip="Défavorable">
+                          <mat-icon>cancel</mat-icon>
+                        </button>
+                      }
+                    </div>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+  }
+  } <!-- end @else -->
+</div>
+
+<!-- ── Version Dialog ──────────────────────────────────────────── -->
+@if (showVersionDialog()) {
+  <div class="dialog-backdrop" (click)="closeVersionDialog()">
+    <div class="dialog-box" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>Nouvelle version</h2>
+        <button class="dialog-close" (click)="closeVersionDialog()"><mat-icon>close</mat-icon></button>
+      </div>
+      <form [formGroup]="versionForm" (ngSubmit)="submitVersion()" class="dialog-form">
+        <div class="field-group">
+          <label>Commentaire</label>
+          <textarea formControlName="commentaire" class="field-input field-textarea" rows="3"
+                    placeholder="Modifications apportées…"></textarea>
+        </div>
+        <div class="field-group">
+          <label>Fichier PDF de la version</label>
+          <label class="file-drop-zone" [class.has-file]="selectedVersionFile()" for="version-file-input">
+            @if (selectedVersionFile()) {
+              <mat-icon class="pdf-icon">picture_as_pdf</mat-icon>
+              <span class="file-name">{{ selectedVersionFile()!.name }}</span>
+              <span class="file-size">{{ (selectedVersionFile()!.size / 1024 / 1024).toFixed(1) }} Mo</span>
+              <button type="button" class="file-clear-btn" (click)="$event.preventDefault(); selectedVersionFile.set(null)">
+                <mat-icon>close</mat-icon>
+              </button>
+            } @else {
+              <mat-icon>upload_file</mat-icon>
+              <span>Cliquer pour joindre le PDF</span>
+              <span class="file-hint">PDF · max 50 Mo</span>
+            }
+          </label>
+          <input id="version-file-input" type="file" accept=".pdf,application/pdf"
+                 class="file-hidden-input" (change)="onVersionFileChange($event)" />
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn-cancel" (click)="closeVersionDialog()">Annuler</button>
+          <button type="submit" class="btn-submit" [disabled]="submitting()">
+            @if (submitting()) { <mat-spinner diameter="16" /> }
+            Créer la version
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ── Controle Dialog ─────────────────────────────────────────── -->
+@if (showControleDialog()) {
+  <div class="dialog-backdrop" (click)="closeControleDialog()">
+    <div class="dialog-box" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>Créer un contrôle</h2>
+        <button class="dialog-close" (click)="closeControleDialog()"><mat-icon>close</mat-icon></button>
+      </div>
+      <form [formGroup]="controleForm" (ngSubmit)="submitControle()" class="dialog-form">
+        <div class="field-group">
+          <label>Type de contrôle</label>
+          <select formControlName="typeControle" class="field-input field-select">
+            <option value="INTERNE">Contrôle Interne</option>
+            <option value="EXTERNE">Contrôle Externe</option>
+          </select>
+        </div>
+        <!-- Si l'utilisateur connecté EST contrôleur → auto-assigné, pas de dropdown -->
+        @if (isControle()) {
+          <div class="info-assign">
+            <mat-icon>how_to_reg</mat-icon>
+            <span>Vous serez assigné comme contrôleur.</span>
+          </div>
+        } @else {
+          <!-- ADMIN ou autre : choisir dans la liste -->
+          <div class="field-group">
+            <label>Contrôleur assigné <span class="req">*</span></label>
+            @if (loadingControleurs()) {
+              <p class="loading-hint">Chargement…</p>
+            } @else if (controleurs().length === 0) {
+              <p class="loading-hint" style="color:#B91C1C">Aucun contrôleur trouvé.</p>
+            } @else {
+              <select formControlName="controleurId" class="field-input field-select">
+                <option value="">— Sélectionner un contrôleur —</option>
+                @for (u of controleurs(); track u.id) {
+                  <option [value]="u.id">
+                    {{ u.prenom }} {{ u.nom }}
+                    — {{ u.role === 'CONTROLEUR_INTERNE' ? 'Ctrl. Interne' : 'Ctrl. Externe' }}
+                  </option>
+                }
+              </select>
+            }
+          </div>
+        }
+        <div class="dialog-actions">
+          <button type="button" class="btn-cancel" (click)="closeControleDialog()">Annuler</button>
+          <button type="submit" class="btn-submit"
+                  [disabled]="!controleForm.value.controleurId || submittingControle()">
+            @if (submittingControle()) { <mat-spinner diameter="16" /> }
+            Lancer le contrôle
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+  `,
+  styles: [`
+    .page-wrap { max-width: 1100px; }
+
+    .breadcrumb {
+      display: flex; align-items: center; gap: 4px;
+      margin-bottom: 20px; font-size: .85rem;
+    }
+    .bc-link { color: var(--db-navy); text-decoration: none; &:hover { text-decoration: underline; } }
+    .bc-sep { font-size: 1rem; color: var(--db-text-secondary); }
+    .bc-cur { color: var(--db-text-secondary); }
+    .loader-wrap { display: flex; justify-content: center; padding: 60px; }
+
+    /* Plan header */
+    .plan-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 20px; gap: 20px;
+    }
+    .plan-badges { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .type-badge {
+      font-family: 'Courier New', monospace; font-size: .82rem; font-weight: 700;
+      padding: 3px 10px; border-radius: 4px;
+    }
+    .indice-tag {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 2px 12px; border-radius: 12px;
+      background: var(--db-navy); color: #fff;
+      font-size: .78rem; font-weight: 700;
+    }
+    .refuse-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 10px; border-radius: 12px;
+      background: #FEE2E2; color: #B91C1C;
+      font-size: .75rem; font-weight: 700;
+      mat-icon { font-size: .85rem; width: 14px; height: 14px; }
+    }
+    .vise-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 12px; border-radius: 12px;
+      background: #D1FAE5; color: #065F46;
+      font-size: .75rem; font-weight: 700;
+      mat-icon { font-size: .85rem; width: 14px; height: 14px; }
+    }
+    .plan-nom {
+      font-family: var(--db-font-display, 'Barlow Condensed', sans-serif);
+      font-size: 1.6rem; font-weight: 800; margin: 0 0 4px;
+      color: var(--db-text); text-transform: uppercase; letter-spacing: .02em;
+    }
+    .plan-affaire-ref {
+      font-size: .8rem; color: var(--db-text-secondary); margin: 0;
+      code { font-family: 'Courier New', monospace; font-size: .78rem; color: var(--db-navy); }
+    }
+
+    /* Pipeline workflow BTP */
+    .statut-pipeline {
+      display: flex; align-items: center;
+      background: #fff; border: 1px solid var(--db-border);
+      border-radius: 10px; padding: 16px 20px;
+    }
+
+    .pipeline-step {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      padding: 0 10px; min-width: 80px;
+    }
+
+    .step-node {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #E9EEF5; border: 2px solid #D1D9E6;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .25s; position: relative;
+
+      .pipeline-step.done & {
+        background: var(--db-navy); border-color: var(--db-navy);
+      }
+      .pipeline-step.current & {
+        background: var(--db-orange); border-color: var(--db-orange);
+        box-shadow: 0 0 0 5px rgba(232,68,14,.15);
+      }
+      .pipeline-step.refused & {
+        background: #FEE2E2; border-color: #FECACA;
+      }
+    }
+
+    .step-check {
+      font-size: .85rem; width: 14px; height: 14px;
+      color: #fff;
+    }
+
+    .step-pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #fff;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .6; transform: scale(.8); }
+    }
+
+    .step-name {
+      font-size: .72rem; font-weight: 700; color: var(--db-text-secondary);
+      white-space: nowrap; text-align: center;
+
+      .pipeline-step.done & { color: var(--db-navy); }
+      .pipeline-step.current & { color: var(--db-orange); }
+    }
+
+    .step-role {
+      font-size: .65rem; color: var(--db-text-light);
+      white-space: nowrap; text-align: center;
+    }
+
+    .step-connector {
+      width: 32px; height: 2px;
+      background: #D1D9E6; flex-shrink: 0;
+      transition: background .25s;
+
+      &.done { background: var(--db-navy); }
+    }
+
+    /* Actions */
+    .actions-bar {
+      display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .btn-action {
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid var(--db-border); border-radius: 6px;
+      padding: 8px 16px; background: #fff; cursor: pointer;
+      font-size: .875rem; font-weight: 500; color: var(--db-text);
+      mat-icon { font-size: 1rem; width: 16px; height: 16px; }
+      &:hover { background: #F3F4F6; }
+      &.primary {
+        background: var(--db-navy); color: #fff; border-color: transparent;
+        &:hover { background: var(--db-navy-darker, #091B2E); }
+      }
+      &.accent {
+        background: #15803D; color: #fff; border-color: transparent;
+        &:hover { background: #166534; }
+      }
+    }
+
+    .section-title { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: var(--db-text); }
+
+    /* Versions */
+    .versions-list { display: flex; flex-direction: column; }
+    .version-card {
+      display: flex; gap: 16px; padding: 12px 0;
+      &.latest .ver-body { background: #FFFBEB; border-color: #FCD34D; }
+    }
+    .ver-left {
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+      width: 44px; flex-shrink: 0;
+    }
+    .ver-indice {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--db-navy); color: #fff;
+      font-weight: 800; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .ver-line { flex: 1; width: 2px; background: var(--db-border); margin: 4px auto; }
+    .ver-body {
+      flex: 1; border: 1px solid var(--db-border); border-radius: 8px;
+      padding: 12px 16px; background: #fff;
+      display: flex; flex-direction: column; gap: 6px;
+      margin-bottom: 12px;
+    }
+    .ver-header { display: flex; align-items: center; justify-content: space-between; }
+    .ver-title { font-weight: 600; color: var(--db-text); }
+    .ver-date { font-size: .78rem; color: var(--db-text-secondary); }
+    .ver-comment { font-size: .85rem; color: var(--db-text-secondary); margin: 0; }
+    .ver-file {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: .82rem; color: var(--db-navy); text-decoration: none;
+      mat-icon { font-size: .9rem; width: 14px; height: 14px; }
+      &:hover { text-decoration: underline; }
+    }
+    .ver-by { font-size: .75rem; color: var(--db-text-secondary); }
+    .ver-controles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .controle-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      border: 1px solid; border-radius: 12px; padding: 2px 10px;
+      font-size: .75rem; font-weight: 600;
+    }
+    .chip-icon { font-size: .85rem; width: 14px; height: 14px; }
+
+    /* Table */
+    .table-card {
+      background: #fff; border: 1px solid var(--db-border);
+      border-radius: 8px; overflow: hidden;
+    }
+    .data-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    thead tr { background: #F8FAFC; border-bottom: 1px solid var(--db-border); }
+    th {
+      padding: 10px 16px; font-size: .73rem; font-weight: 600;
+      color: var(--db-text-secondary); text-transform: uppercase;
+      letter-spacing: .06em; text-align: left;
+    }
+    .data-row {
+      border-bottom: 1px solid var(--db-border);
+      &:last-child { border-bottom: none; }
+      &:hover { background: #F8FAFC; }
+    }
+    td { padding: 12px 16px; vertical-align: middle; }
+    .text-muted { color: var(--db-text-secondary); font-size: .82rem; }
+    .type-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      background: #EFF6FF; color: var(--db-navy);
+      font-size: .78rem; font-weight: 600;
+    }
+    .ver-ref {
+      font-family: 'Courier New', monospace; font-size: .78rem;
+      color: var(--db-text-secondary);
+    }
+    .decision-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 12px; font-size: .78rem; font-weight: 600;
+    }
+    .dec-icon { font-size: .9rem; width: 14px; height: 14px; }
+    .row-actions-inline { display: flex; gap: 4px; }
+    .dec-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 4px; border: none;
+      cursor: pointer;
+      mat-icon { font-size: 1rem; width: 16px; height: 16px; }
+      &.valide { background: #D1FAE5; color: #15803D; &:hover { background: #A7F3D0; } }
+      &.bao    { background: #ECFEFF; color: #0E7490; &:hover { background: #CFFAFE; } }
+      &.refuse { background: #FEE2E2; color: #B91C1C; &:hover { background: #FECACA; } }
+    }
+
+    /* Dialogs */
+    .dialog-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .dialog-box {
+      background: #fff; border-radius: 10px; width: 480px; max-width: 95vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .dialog-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px 0;
+      h2 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--db-text); }
+    }
+    .dialog-close {
+      border: none; background: none; cursor: pointer;
+      color: var(--db-text-secondary); padding: 4px; border-radius: 4px;
+      display: flex; &:hover { background: #F3F4F6; }
+    }
+    .dialog-form { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-group label { font-size: .8rem; font-weight: 600; color: var(--db-text-secondary); }
+    .req { color: #B91C1C; }
+    .field-input {
+      border: 1px solid var(--db-border); border-radius: 6px;
+      padding: 9px 12px; font-size: .875rem; color: var(--db-text);
+      outline: none; font-family: inherit; background: #fff;
+      &:focus { border-color: var(--db-navy); }
+    }
+    .field-textarea { resize: vertical; min-height: 72px; }
+    .field-select { appearance: auto; }
+    .dialog-actions {
+      display: flex; justify-content: flex-end; gap: 10px;
+      margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--db-border);
+    }
+    .btn-cancel {
+      border: 1px solid var(--db-border); border-radius: 6px;
+      padding: 9px 18px; background: #fff; cursor: pointer;
+      font-size: .875rem; color: var(--db-text-secondary);
+      &:hover { background: #F3F4F6; }
+    }
+    .btn-submit {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--db-navy); color: #fff;
+      border: none; border-radius: 6px; padding: 9px 20px;
+      font-size: .875rem; font-weight: 600; cursor: pointer;
+      &:disabled { opacity: .5; cursor: not-allowed; }
+      &:not(:disabled):hover { background: var(--db-navy-darker, #091B2E); }
+    }
+    .loading-hint { font-size: .82rem; color: var(--db-text-secondary); margin: 0; padding: 8px 0; }
+    .info-assign {
+      display: flex; align-items: center; gap: 8px;
+      background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px;
+      padding: 10px 14px; font-size: .875rem; color: #1E40AF;
+      mat-icon { font-size: 1.1rem; width: 18px; height: 18px; flex-shrink: 0; }
+    }
+    .file-drop-zone {
+      display: flex; align-items: center; gap: 10px;
+      border: 2px dashed var(--db-border); border-radius: 8px;
+      padding: 14px 16px; cursor: pointer; background: #FAFBFC;
+      transition: border-color .15s, background .15s;
+      &:hover { border-color: var(--db-navy); background: #F0F4FF; }
+      &.has-file { border-style: solid; border-color: #15803D; background: #F0FDF4; }
+      mat-icon { color: var(--db-text-secondary); font-size: 1.4rem; width: 22px; height: 22px; }
+      .pdf-icon { color: #B91C1C; font-size: 1.4rem; width: 22px; height: 22px; }
+      span { font-size: .82rem; color: var(--db-text-secondary); }
+      .file-name { color: var(--db-text); font-weight: 600; flex: 1; }
+      .file-size { font-size: .75rem; color: #6B7280; }
+      .file-hint { font-size: .72rem; color: #9CA3AF; }
+    }
+    .file-hidden-input { display: none; }
+    .file-clear-btn {
+      margin-left: auto; border: none; background: transparent; cursor: pointer;
+      color: #B91C1C; display: flex; align-items: center; padding: 2px; border-radius: 4px;
+      &:hover { background: #FEE2E2; }
+      mat-icon { font-size: 1rem; width: 16px; height: 16px; }
+    }
+  `]
+})
+export class PlanDetailComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private planSvc = inject(PlanService);
+  private controleSvc = inject(ControleService);
+  private userSvc = inject(UserService);
+  private auth = inject(AuthService);
+  private snack = inject(MatSnackBar);
+  private fb = inject(FormBuilder);
+
+  plan = signal<Plan | null>(null);
+  controles = signal<Controle[]>([]);
+  controleurs = signal<UtilisateurDto[]>([]);
+  loading = signal(true);
+  loadingControleurs = signal(false);
+  showVersionDialog = signal(false);
+  showControleDialog = signal(false);
+  submitting = signal(false);
+  submittingControle = signal(false);
+  selectedVersionFile = signal<File | null>(null);
+
+  readonly STATUT_PLAN = STATUT_PLAN;
+  readonly getStatutPlan = getStatutPlan;
+  readonly TYPE_PLAN = TYPE_PLAN;
+  readonly DECISION_META = DECISION_META;
+
+  /** Pipeline visuel du workflow BTP (CLAUDE-METIER.md §3). */
+  readonly statutSteps = [
+    { key: 'BROUILLON'           as const, step: 0, label: 'Brouillon',    role: 'Projeteur'    },
+    { key: 'EMIS'                as const, step: 1, label: 'Émis',         role: 'Émetteur'     },
+    { key: 'EN_CONTROLE_INTERNE' as const, step: 2, label: 'Ctrl Interne', role: 'Ctrl. CI'     },
+    { key: 'BON_POUR_EXECUTION'  as const, step: 3, label: 'BPE / BAO',   role: 'Ctrl. CI OK'  },
+    { key: 'EN_CONTROLE_EXTERNE' as const, step: 4, label: 'Ctrl Externe', role: 'Bureau Ctrl.' },
+    { key: 'VISE'                as const, step: 5, label: 'Visé ✓',       role: 'Resp. Visa'   },
+  ];
+
+  versionForm = this.fb.group({
+    commentaire: [''],
+  });
+
+  controleForm = this.fb.group({
+    typeControle: ['INTERNE'],
+    controleurId: [''],
+  });
+
+  get userId(): string { return this.auth.currentUser()?.userId ?? ''; }
+  get role(): string { return this.auth.userRole() ?? ''; }
+  isAdmin(): boolean { return this.role === 'ADMIN'; }
+  /** L'utilisateur connecté est lui-même contrôleur → auto-assigné */
+  isControle(): boolean {
+    return this.role === 'CONTROLEUR_INTERNE' || this.role === 'CONTROLEUR_EXTERNE';
+  }
+
+  /** Peut émettre : plan en BROUILLON, rôle EMETTEUR ou PROJETEUR */
+  canEmettre(p: Plan): boolean {
+    return p.statut === 'BROUILLON' && ['EMETTEUR', 'PROJETEUR', 'ADMIN'].includes(this.role);
+  }
+
+  /** Peut soumettre au contrôle interne : plan EMIS, rôle EMETTEUR */
+  canSoumettre(p: Plan): boolean {
+    return p.statut === 'EMIS' && ['EMETTEUR', 'PROJETEUR', 'ADMIN'].includes(this.role);
+  }
+
+  /** Peut créer une nouvelle version : plan A_MODIFIER ou DEFAVORABLE, rôle PROJETEUR */
+  canAddVersion(p: Plan): boolean {
+    return (p.statut === 'A_MODIFIER' || p.statut === 'DEFAVORABLE')
+      && ['PROJETEUR', 'EMETTEUR', 'ADMIN'].includes(this.role);
+  }
+
+  /** Peut créer un contrôle : plan EN_CONTROLE_INTERNE ou BON_POUR_EXECUTION/BAO pour externe */
+  canControler(p: Plan): boolean {
+    if (['CONTROLEUR_INTERNE', 'ADMIN'].includes(this.role)) {
+      return p.statut === 'EN_CONTROLE_INTERNE';
+    }
+    if (this.role === 'CONTROLEUR_EXTERNE') {
+      return p.statut === 'BON_POUR_EXECUTION' || p.statut === 'BON_AVEC_OBSERVATIONS';
+    }
+    return false;
+  }
+
+  /** Peut apposer le visa : plan FAVORABLE ou BON_POUR_EXECUTION (sans externe) */
+  canViser(p: Plan): boolean {
+    return (p.statut === 'FAVORABLE' || p.statut === 'BON_POUR_EXECUTION' || p.statut === 'BON_AVEC_OBSERVATIONS')
+      && ['RESPONSABLE_VISA', 'ADMIN'].includes(this.role);
+  }
+
+  canDecide(c: Controle): boolean {
+    return c.decision === 'EN_ATTENTE' && ['CONTROLEUR_INTERNE', 'CONTROLEUR_EXTERNE', 'ADMIN'].includes(this.role);
+  }
+
+  /** Prochain indice pour l'affichage dans le bouton Émettre */
+  nextIndice(p: Plan): string {
+    const emis = p.versions.filter(v => v.indice !== '-').length;
+    return emis === 0 ? 'A' : String.fromCharCode('A'.charCodeAt(0) + emis);
+  }
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.planSvc.getById(id).subscribe({
+      next: p => { this.plan.set(p); this.loading.set(false); },
+      error: () => this.loading.set(false)
+    });
+    this.controleSvc.getByPlan(id).subscribe({
+      next: cs => this.controles.set(cs),
+      error: () => {}
+    });
+  }
+
+  controlesByVersion(versionId: string): Controle[] {
+    return this.controles().filter(c => c.versionId === versionId);
+  }
+
+  versionLabel(versionId: string): string {
+    const v = this.plan()?.versions.find(x => x.idVersion === versionId);
+    return v ? `v${v.numeroVersion} (${v.indice})` : versionId;
+  }
+
+  emettre(): void {
+    const id = this.plan()!.id;
+    this.planSvc.emettre(id).subscribe({
+      next: p => {
+        this.plan.set(p);
+        const indice = p.derniereVersion?.indice ?? 'A';
+        this.snack.open(`Plan émis officiellement — Indice ${indice}`, 'OK', { duration: 3000 });
+      },
+      error: (err) => this.snack.open(
+        err?.error?.message ?? 'Erreur lors de l\'émission', 'Fermer', { duration: 4000 })
+    });
+  }
+
+  soumettre(): void {
+    const id = this.plan()!.id;
+    this.planSvc.soumettre(id).subscribe({
+      next: p => { this.plan.set(p); this.snack.open('Plan soumis au contrôle interne', 'OK', { duration: 3000 }); },
+      error: (err) => this.snack.open(
+        err?.error?.message ?? 'Erreur lors de la soumission', 'Fermer', { duration: 4000 })
+    });
+  }
+
+  openVersionDialog(): void {
+    this.versionForm.reset();
+    this.selectedVersionFile.set(null);
+    this.showVersionDialog.set(true);
+  }
+  closeVersionDialog(): void {
+    this.showVersionDialog.set(false);
+    this.selectedVersionFile.set(null);
+  }
+
+  onVersionFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files?.length) {
+      this.selectedVersionFile.set(input.files[0]);
+    }
+  }
+
+  submitVersion(): void {
+    this.submitting.set(true);
+    const v = this.versionForm.value;
+    const planId = this.plan()!.id;
+
+    const doAddVersion = (fichierUrl?: string) => {
+      this.planSvc.addVersion(planId, {
+        commentaire: v.commentaire || undefined,
+        fichierUrl,
+      }).subscribe({
+        next: p => {
+          this.plan.set(p);
+          this.snack.open('Nouvelle version créée', 'OK', { duration: 3000 });
+          this.closeVersionDialog();
+          this.submitting.set(false);
+        },
+        error: () => { this.snack.open('Erreur', 'Fermer', { duration: 4000 }); this.submitting.set(false); }
+      });
+    };
+
+    const file = this.selectedVersionFile();
+    if (file) {
+      this.planSvc.uploadFile(file).subscribe({
+        next: ({ fichierUrl }) => doAddVersion(fichierUrl),
+        error: () => {
+          this.snack.open('Erreur lors de l\'upload du PDF', 'Fermer', { duration: 4000 });
+          this.submitting.set(false);
+        }
+      });
+    } else {
+      doAddVersion();
+    }
+  }
+
+  openControleDialog(): void {
+    const defaultType = this.role === 'CONTROLEUR_EXTERNE' ? 'EXTERNE' : 'INTERNE';
+    this.controleForm.reset({ typeControle: defaultType, controleurId: '' });
+    this.controleurs.set([]);
+    this.showControleDialog.set(true);
+
+    if (this.isControle()) {
+      // L'utilisateur connecté EST contrôleur → on l'assigne directement, pas de liste
+      this.controleForm.patchValue({ controleurId: this.userId });
+    } else {
+      // ADMIN ou autre → charger la liste et choisir
+      this.loadingControleurs.set(true);
+      forkJoin({
+        internes: this.userSvc.getByRole('CONTROLEUR_INTERNE'),
+        externes: this.userSvc.getByRole('CONTROLEUR_EXTERNE'),
+      }).subscribe({
+        next: ({ internes, externes }) => {
+          this.controleurs.set([...internes, ...externes].filter(u => u.actif));
+          this.loadingControleurs.set(false);
+        },
+        error: () => this.loadingControleurs.set(false),
+      });
+    }
+  }
+  closeControleDialog(): void { this.showControleDialog.set(false); }
+
+  submitControle(): void {
+    const f = this.controleForm.value;
+    if (!f.controleurId) return;
+    this.submittingControle.set(true);
+    const p = this.plan()!;
+    const payload: CreateControlePayload = {
+      planId: p.id,
+      versionId: p.derniereVersion!.idVersion,
+      typeControle: f.typeControle as 'INTERNE' | 'EXTERNE',
+      controleurId: f.controleurId,
+    };
+    this.controleSvc.create(payload).subscribe({
+      next: c => {
+        this.controles.update(list => [...list, c]);
+        this.snack.open('Contrôle créé', 'OK', { duration: 3000 });
+        this.closeControleDialog();
+        this.submittingControle.set(false);
+      },
+      error: () => { this.snack.open('Erreur', 'Fermer', { duration: 4000 }); this.submittingControle.set(false); }
+    });
+  }
+
+  decide(c: Controle, decision: 'BPE' | 'BAO' | 'FAVORABLE' | 'A_MODIFIER' | 'DEFAVORABLE'): void {
+    // Les décisions nécessitant une remarque obligatoire
+    let remarque: string | undefined;
+    if (decision === 'A_MODIFIER' || decision === 'DEFAVORABLE') {
+      remarque = prompt('Remarque obligatoire (corrections à apporter) :') ?? undefined;
+      if (!remarque?.trim()) {
+        this.snack.open('La remarque est obligatoire pour ce type de décision', 'Fermer', { duration: 4000 });
+        return;
+      }
+    }
+    const payload: DecisionPayload = { decision, remarque };
+    this.controleSvc.applyDecision(c.id, payload).subscribe({
+      next: updated => {
+        this.controles.update(list => list.map(x => x.id === c.id ? updated : x));
+        this.snack.open('Décision enregistrée', 'OK', { duration: 3000 });
+        // Reload plan to get updated status
+        this.planSvc.getById(this.plan()!.id).subscribe(p => this.plan.set(p));
+      },
+      error: () => this.snack.open('Erreur', 'Fermer', { duration: 4000 })
+    });
+  }
+
+  applyVisa(): void {
+    if (!confirm('Apposer le visa sur ce plan ?')) return;
+    this.controleSvc.applyVisa(this.controles().at(-1)?.id ?? '', {}).subscribe({
+      next: () => {
+        this.snack.open('Visa appliqué', 'OK', { duration: 3000 });
+        this.planSvc.getById(this.plan()!.id).subscribe(p => this.plan.set(p));
+      },
+      error: () => this.snack.open('Erreur lors du visa', 'Fermer', { duration: 4000 })
+    });
+  }
+}

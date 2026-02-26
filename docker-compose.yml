@@ -1,0 +1,270 @@
+version: '3.8'
+
+# ============================================================
+# Docker Compose — Système de Gestion des Affaires BTP
+# Lance tous les services : infrastructure + microservices + frontend
+#
+# Usage :
+#   Phase 1 (infra seule) : docker-compose up mongodb rabbitmq eureka-server api-gateway
+#   Complet               : docker-compose up --build
+# ============================================================
+
+services:
+
+  # ──────────────────────────────────────────────────────────
+  # INFRASTRUCTURE
+  # ──────────────────────────────────────────────────────────
+
+  mongodb:
+    image: mongo:7.0
+    container_name: btp-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-btppassword}
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - btp-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: btp-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI — http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-btp}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-btp123}
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - btp-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    container_name: btp-eureka
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_HOSTNAME: eureka-server
+    networks:
+      - btp-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: btp-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - btp-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ──────────────────────────────────────────────────────────
+  # MICROSERVICES MÉTIER
+  # ──────────────────────────────────────────────────────────
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: btp-user
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-btppassword}@mongodb:27017/btp_user?authSource=admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:-btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - btp-network
+
+  affaire-service:
+    build:
+      context: ./affaire-service
+      dockerfile: Dockerfile
+    container_name: btp-affaire
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-btppassword}@mongodb:27017/btp_affaire?authSource=admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:-btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - btp-network
+
+  plan-service:
+    build:
+      context: ./plan-service
+      dockerfile: Dockerfile
+    container_name: btp-plan
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-btppassword}@mongodb:27017/btp_plan?authSource=admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-btp}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-btp123}
+      JWT_SECRET: ${JWT_SECRET:-btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - plan_uploads:/app/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - btp-network
+
+  controle-service:
+    build:
+      context: ./controle-service
+      dockerfile: Dockerfile
+    container_name: btp-controle
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-btppassword}@mongodb:27017/btp_controle?authSource=admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-btp}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-btp123}
+      JWT_SECRET: ${JWT_SECRET:-btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - btp-network
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: btp-notification
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-btppassword}@mongodb:27017/btp_notification?authSource=admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-btp}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-btp123}
+      # Configuration SMTP (email)
+      SPRING_MAIL_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${SMTP_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SMTP_USER:-}
+      SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - btp-network
+
+  # ──────────────────────────────────────────────────────────
+  # FRONTEND ANGULAR
+  # ──────────────────────────────────────────────────────────
+
+  frontend-angular:
+    build:
+      context: ./frontend-angular
+      dockerfile: Dockerfile
+    container_name: btp-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - btp-network
+
+# ──────────────────────────────────────────────────────────
+# RÉSEAU PARTAGÉ
+# ──────────────────────────────────────────────────────────
+networks:
+  btp-network:
+    driver: bridge
+    name: btp-network
+
+# ──────────────────────────────────────────────────────────
+# VOLUMES PERSISTANTS
+# ──────────────────────────────────────────────────────────
+volumes:
+  mongodb_data:
+    name: btp-mongodb-data
+  mongodb_config:
+    name: btp-mongodb-config
+  rabbitmq_data:
+    name: btp-rabbitmq-data
+  plan_uploads:
+    name: btp-plan-uploads

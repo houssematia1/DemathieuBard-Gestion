@@ -1,0 +1,98 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: API-GATEWAY
+
+  cloud:
+    gateway:
+      # Configuration CORS globale (pour le frontend Angular sur localhost:4200)
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:4200"
+              - "http://localhost:80"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      # Routes vers les microservices (lb:// = load balancing via Eureka)
+      routes:
+        # ── Affaire Service ──────────────────────────────────────────
+        - id: affaire-service
+          uri: lb://AFFAIRE-SERVICE
+          predicates:
+            - Path=/api/affaires/**
+
+        # ── Plan Service ─────────────────────────────────────────────
+        - id: plan-service
+          uri: lb://PLAN-SERVICE
+          predicates:
+            - Path=/api/plans/**
+
+        # ── Controle Service ─────────────────────────────────────────
+        - id: controle-service
+          uri: lb://CONTROLE-SERVICE
+          predicates:
+            - Path=/api/controles/**
+
+        # ── User Service — Auth ───────────────────────────────────────
+        - id: user-service-auth
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/auth/**
+
+        # ── User Service — Users ──────────────────────────────────────
+        - id: user-service-users
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/**
+
+        # ── Notification Service ──────────────────────────────────────
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+
+# Eureka — Service Discovery
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Secret JWT partagé avec user-service (doit être identique)
+jwt:
+  secret: ${JWT_SECRET:btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.btp.gateway: DEBUG
