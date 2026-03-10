@@ -1,3 +1,4 @@
+// Modèle principal de l'entité Affaire
 package com.btp.affaire.model;
 
 import lombok.AllArgsConstructor;
