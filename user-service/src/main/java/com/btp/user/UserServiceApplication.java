@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServic
  * Point d'entrée du User Service.
  * Gère l'authentification JWT et le CRUD des utilisateurs.
  * Exclut l'auto-configuration UserDetailsService (gestion manuelle via JWT).
+ * Port par défaut : 8084
  */
 @SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
 public class UserServiceApplication {
