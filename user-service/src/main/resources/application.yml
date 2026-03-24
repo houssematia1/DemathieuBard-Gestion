@@ -7,7 +7,7 @@ spring:
 
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:btppassword@localhost:27017/btp_user?authSource=admin}
+      uri: ${SPRING_DATA_MONGODB_URI}
 
 # Eureka — Service Discovery
 eureka:
@@ -23,7 +23,7 @@ eureka:
 
 # JWT — doit correspondre au secret de l'api-gateway
 jwt:
-  secret: ${JWT_SECRET:btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+  secret: ${JWT_SECRET}
   expiration: 86400000  # 24 heures en millisecondes
 
 # Swagger UI

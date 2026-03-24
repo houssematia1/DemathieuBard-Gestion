@@ -7,7 +7,7 @@ spring:
 
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:btppassword@localhost:27017/btp_affaire?authSource=admin}
+      uri: ${SPRING_DATA_MONGODB_URI}
 
 eureka:
   client:
@@ -21,7 +21,7 @@ eureka:
     lease-expiration-duration-in-seconds: 30
 
 jwt:
-  secret: ${JWT_SECRET:btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+  secret: ${JWT_SECRET}
 
 springdoc:
   api-docs:

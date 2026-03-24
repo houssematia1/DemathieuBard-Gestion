@@ -7,13 +7,13 @@ spring:
 
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://admin:btppassword@localhost:27017/btp_controle?authSource=admin}
+      uri: ${SPRING_DATA_MONGODB_URI}
 
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:btp}
-    password: ${SPRING_RABBITMQ_PASSWORD:btp123}
+    username: ${SPRING_RABBITMQ_USERNAME}
+    password: ${SPRING_RABBITMQ_PASSWORD}
 
 eureka:
   client:
@@ -27,7 +27,7 @@ eureka:
     lease-expiration-duration-in-seconds: 30
 
 jwt:
-  secret: ${JWT_SECRET:btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+  secret: ${JWT_SECRET}
 
 springdoc:
   api-docs:

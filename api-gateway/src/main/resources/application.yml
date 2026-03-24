@@ -78,7 +78,7 @@ eureka:
 
 # Secret JWT partagé avec user-service (doit être identique)
 jwt:
-  secret: ${JWT_SECRET:btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256}
+  secret: ${JWT_SECRET}
 
 # Actuator
 management:

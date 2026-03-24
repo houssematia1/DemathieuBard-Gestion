@@ -1,0 +1,39 @@
+# Secrets — ne jamais committer
+.env
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spring Boot local overrides (ne pas committer les configs locales avec secrets)
+**/application-local.yml
+**/application-local.properties
