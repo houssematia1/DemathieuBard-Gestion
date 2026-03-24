@@ -20,14 +20,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/controles")
 @RequiredArgsConstructor
-@Tag(name = "Contrôles", description = "Workflow de contrôle et visa des plans")
+@Tag(name = "Contrôles", description = "Gestion des contrôles qualité (VSO/VAC/VAO)")
 @SecurityRequirement(name = "bearerAuth")
 public class ControleController {
 
     private final ControleService controleService;
 
     @PostMapping
-    @Operation(summary = "Créer un contrôle")
+    @Operation(summary = "Créer un contrôle (INTERNE / EXTERNE / TECHNIQUE / VISA)")
     public ResponseEntity<ControleDto> create(
             @Valid @RequestBody CreateControleRequest request,
             Authentication auth) {
@@ -46,12 +46,21 @@ public class ControleController {
     }
 
     @GetMapping("/en-attente")
-    @Operation(summary = "Contrôles en attente pour un contrôleur")
+    @Operation(summary = "Contrôles en attente d'avis pour un contrôleur")
     public ResponseEntity<List<ControleDto>> findEnAttente(
             @RequestParam(required = false) String controleurId,
             Authentication auth) {
         String id = controleurId != null ? controleurId : auth.getName();
         return ResponseEntity.ok(controleService.findEnAttente(id));
+    }
+
+    @GetMapping("/mes")
+    @Operation(summary = "Tous les contrôles assignés à un contrôleur")
+    public ResponseEntity<List<ControleDto>> findMes(
+            @RequestParam(required = false) String controleurId,
+            Authentication auth) {
+        String id = controleurId != null ? controleurId : auth.getName();
+        return ResponseEntity.ok(controleService.findMes(id));
     }
 
     @GetMapping("/{id}")
@@ -61,7 +70,7 @@ public class ControleController {
     }
 
     @PutMapping("/{id}/decision")
-    @Operation(summary = "Valider / Rejeter / Demander modification")
+    @Operation(summary = "Appliquer un avis : VSO (approuvé) | VAC (avec commentaire) | VAO (corrections)")
     public ResponseEntity<ControleDto> applyDecision(
             @PathVariable String id,
             @Valid @RequestBody DecisionRequest request,
@@ -70,17 +79,11 @@ public class ControleController {
     }
 
     @PostMapping("/{id}/commentaires")
-    @Operation(summary = "Ajouter un commentaire")
+    @Operation(summary = "Ajouter un commentaire au contrôle")
     public ResponseEntity<ControleDto> addCommentaire(
             @PathVariable String id,
             @Valid @RequestBody CommentaireRequest request,
             Authentication auth) {
         return ResponseEntity.ok(controleService.addCommentaire(id, request, auth.getName()));
-    }
-
-    @PostMapping("/{id}/visa")
-    @Operation(summary = "Appliquer le visa (validation finale)")
-    public ResponseEntity<ControleDto> applyVisa(@PathVariable String id, Authentication auth) {
-        return ResponseEntity.ok(controleService.applyVisa(id, auth.getName()));
     }
 }

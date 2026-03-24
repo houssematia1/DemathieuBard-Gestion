@@ -12,7 +12,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { AffaireService, CreateAffairePayload } from '../../../core/services/affaire.service';
+import { UserService } from '../../../core/services/user.service';
 import { Affaire, STATUT_AFFAIRE, StatutAffaire } from '../../../core/models/affaire.model';
+import { UtilisateurDto } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/auth/auth.service';
 
 @Component({
@@ -160,7 +162,30 @@ import { AuthService } from '../../../core/auth/auth.service';
         <div class="field-group">
           <label>Description</label>
           <textarea formControlName="description" class="field-input field-textarea"
-                    placeholder="Description de l'affaire…" rows="3"></textarea>
+                    placeholder="Description de l'affaire…" rows="2"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Client (Maître d'ouvrage)</label>
+            <input formControlName="client" class="field-input" placeholder="Ex: Vinci Construction" />
+          </div>
+          <div class="field-group">
+            <label>Localisation</label>
+            <input formControlName="localisation" class="field-input" placeholder="Ex: Paris 15e" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Chef de projet</label>
+          @if (loadingChefProjets()) {
+            <p class="loading-hint">Chargement…</p>
+          } @else {
+            <select formControlName="chefProjetId" class="field-input field-select">
+              <option value="">— Sélectionner un chef de projet —</option>
+              @for (u of chefProjets(); track u.id) {
+                <option [value]="u.id">{{ u.prenom }} {{ u.nom }}</option>
+              }
+            </select>
+          }
         </div>
         <div class="field-row">
           <div class="field-group">
@@ -376,6 +401,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 })
 export class AffaireListComponent implements OnInit {
   private svc = inject(AffaireService);
+  private userSvc = inject(UserService);
   private auth = inject(AuthService);
   private snack = inject(MatSnackBar);
   private fb = inject(FormBuilder);
@@ -389,6 +415,8 @@ export class AffaireListComponent implements OnInit {
   searchNom = signal('');
   showDialog = signal(false);
   submitting = signal(false);
+  chefProjets = signal<UtilisateurDto[]>([]);
+  loadingChefProjets = signal(false);
 
   readonly STATUT_AFFAIRE = STATUT_AFFAIRE;
   readonly statutKeys = Object.keys(STATUT_AFFAIRE) as StatutAffaire[];
@@ -396,6 +424,9 @@ export class AffaireListComponent implements OnInit {
   form = this.fb.group({
     nom: ['', Validators.required],
     description: [''],
+    client: [''],
+    localisation: [''],
+    chefProjetId: [''],
     dateDebut: ['', Validators.required],
     dateFin: [''],
   });
@@ -443,6 +474,11 @@ export class AffaireListComponent implements OnInit {
   openCreateDialog(): void {
     this.form.reset();
     this.showDialog.set(true);
+    this.loadingChefProjets.set(true);
+    this.userSvc.getByRole('CHEF_PROJET').subscribe({
+      next: users => { this.chefProjets.set(users.filter(u => u.actif)); this.loadingChefProjets.set(false); },
+      error: () => this.loadingChefProjets.set(false),
+    });
   }
 
   closeDialog(): void { this.showDialog.set(false); }
@@ -454,6 +490,9 @@ export class AffaireListComponent implements OnInit {
     const payload: CreateAffairePayload = {
       nom: v.nom!,
       description: v.description || undefined,
+      client: v.client || undefined,
+      localisation: v.localisation || undefined,
+      chefProjetId: v.chefProjetId || undefined,
       dateDebut: v.dateDebut!,
       dateFin: v.dateFin || undefined,
     };

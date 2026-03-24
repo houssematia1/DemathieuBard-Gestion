@@ -23,15 +23,18 @@ export interface HistoriqueEntry {
 
 export interface Affaire {
   id: string;
-  reference: string;
-  nom: string;
+  reference: string;      // numAffaire (ex: AFF-2024-001)
+  nom: string;            // nomAffaire
   description?: string;
-  client?: string;       // Maître d'ouvrage
-  localisation?: string; // Ville / adresse du chantier
-  chefProjetId?: string; // userId du chef de projet
+  client?: string;        // Maître d'ouvrage
+  localisation?: string;  // Adresse / ville du chantier
+  chefProjetId?: string;
   dateDebut: string;
-  dateFin?: string;
+  dateFin?: string;       // dateFinPrevue
   statut: StatutAffaire;
+  avancement?: number;    // Pourcentage global calculé (0-100)
+  pourcentagesParEtat?: Record<string, number>; // Config état → %
+  coefficientsParType?: Record<string, number>; // Config type → coef
   creePar: string;
   dateCreation: string;
   dateDerniereModification: string;

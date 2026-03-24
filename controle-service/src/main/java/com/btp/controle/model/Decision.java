@@ -1,20 +1,16 @@
 package com.btp.controle.model;
 
 /**
- * Décisions du workflow de contrôle BTP (CLAUDE-METIER.md §3 & §5).
+ * Avis du contrôleur — s'applique à tous les types de contrôle.
  *
- * Contrôle INTERNE : BPE | BAO | A_MODIFIER
- * Contrôle EXTERNE : FAVORABLE | DEFAVORABLE
+ * VSO : Visa Sans Observation  — approuvé, aucune correction requise
+ * VAC : Visa Avec Commentaire  — approuvé sous réserve, commentaires mineurs
+ * VAO : Visa Avec Observation  — refusé, corrections majeures requises (remarque obligatoire)
+ * Pour les contrôles de type VISA : VSO/VAC → plan VISE_BPE
  */
 public enum Decision {
-    EN_ATTENTE,    // En attente de la décision du contrôleur
-
-    // ── Contrôle INTERNE ─────────────────────────────────
-    BPE,           // Bon Pour Exécution — contrôle interne OK, passe à l'étape suivante
-    BAO,           // Bon Avec Observations — OK mais remarques mineures à corriger
-    A_MODIFIER,    // Refusé — corrections majeures nécessaires, retour au projeteur
-
-    // ── Contrôle EXTERNE ─────────────────────────────────
-    FAVORABLE,     // Contrôle externe OK — peut aller au visa
-    DEFAVORABLE    // Contrôle externe refusé — retour au projeteur (nouvel indice)
+    EN_ATTENTE,  // En attente de l'avis du contrôleur
+    VSO,         // Visa Sans Observation — approuvé sans réserve
+    VAC,         // Visa Avec Commentaire — approuvé avec commentaires mineurs
+    VAO          // Visa Avec Observation — corrections majeures requises
 }

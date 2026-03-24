@@ -100,6 +100,16 @@ services:
       retries: 5
       start_period: 40s
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: btp-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI — http://localhost:8025
+    networks:
+      - btp-network
+
   # ──────────────────────────────────────────────────────────
   # MICROSERVICES MÉTIER
   # ──────────────────────────────────────────────────────────
@@ -214,13 +224,13 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-btp}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-btp123}
-      # Configuration SMTP (email)
-      SPRING_MAIL_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SPRING_MAIL_PORT: ${SMTP_PORT:-587}
-      SPRING_MAIL_USERNAME: ${SMTP_USER:-}
-      SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-}
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
+      # Configuration SMTP → MailHog (dev)
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_USERNAME: ""
+      SPRING_MAIL_PASSWORD: ""
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "false"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "false"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -228,6 +238,8 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     networks:
       - btp-network
 

@@ -8,8 +8,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AffaireService, UpdateAffairePayload } from '../../../core/services/affaire.service';
 import { PlanService, CreatePlanPayload } from '../../../core/services/plan.service';
+import { UserService } from '../../../core/services/user.service';
 import { Affaire, STATUT_AFFAIRE } from '../../../core/models/affaire.model';
 import { Plan, STATUT_PLAN, TYPE_PLAN, TypePlan } from '../../../core/models/plan.model';
+import { UtilisateurDto } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 
@@ -76,6 +78,55 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
       <div class="info-card">
         <div class="info-label">Dernière modification</div>
         <div class="info-val">{{ a.dateDerniereModification | date:'dd/MM/yyyy HH:mm' }}</div>
+      </div>
+    </div>
+
+    <!-- ── Avancement ────────────────────────────────────────── -->
+    <div class="av-section">
+      <h2 class="section-title">Avancement</h2>
+      <div class="av-layout">
+        <!-- Barre de progression -->
+        <div class="av-progress-card">
+          <div class="av-progress-header">
+            <span class="av-progress-label">Avancement pondéré</span>
+            <span class="av-progress-pct">{{ calculAvancement() }}%</span>
+          </div>
+          <div class="av-progress-bar">
+            <div class="av-progress-fill"
+                 [style.width.%]="calculAvancement()"
+                 [style.background]="calculAvancement() >= 100 ? '#15803D' : calculAvancement() > 50 ? '#1D4ED8' : '#F59E0B'">
+            </div>
+          </div>
+          <div class="av-progress-sub">
+            {{ plans().length }} plan(s) · pondéré par type
+          </div>
+        </div>
+
+        <!-- Tableaux de config -->
+        <div class="av-tables">
+          <div class="av-table-card">
+            <div class="av-table-title">% par état livrable</div>
+            <table class="av-table">
+              <thead><tr><th>État</th><th class="tc">%</th></tr></thead>
+              <tbody>
+                @for (e of objectEntries(a.pourcentagesParEtat); track e[0]) {
+                  <tr><td>{{ etatLabel(e[0]) }}</td><td class="tc">{{ e[1] }}%</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="av-table-card">
+            <div class="av-table-title">Coefficient par type</div>
+            <table class="av-table">
+              <thead><tr><th>Type</th><th class="tc">Coef.</th></tr></thead>
+              <tbody>
+                @for (e of objectEntries(a.coefficientsParType); track e[0]) {
+                  <tr><td>{{ e[0] }}</td><td class="tc">{{ e[1] }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -232,9 +283,74 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
         <button class="dialog-close" (click)="closePlanDialog()"><mat-icon>close</mat-icon></button>
       </div>
       <form [formGroup]="planForm" (ngSubmit)="submitPlan()" class="dialog-form">
+        <div class="field-row">
+          <div class="field-group" style="flex:2">
+            <label>Nom <span class="req">*</span></label>
+            <input formControlName="nom" class="field-input" placeholder="Ex: Plan coffrage RDC" />
+          </div>
+          <div class="field-group">
+            <label>N° plan</label>
+            <input formControlName="numeroPlan" class="field-input" placeholder="PL-001" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Prestation <span class="req">*</span></label>
+            <select formControlName="typePrestation" class="field-input field-select">
+              <option value="PDB">PDB — Plan de base</option>
+              <option value="PS">PS — Plan de synthèse</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Auteur</label>
+            <input formControlName="auteur" class="field-input" placeholder="Nom de l'auteur" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Niveau</label>
+            <select formControlName="niveau" class="field-input field-select">
+              <option value="">— Aucun —</option>
+              <option value="GEN">GEN — Général</option>
+              <option value="FND">FND — Fondations</option>
+              <option value="SS2">SS2 — Sous-sol 2</option>
+              <option value="SS1">SS1 — Sous-sol 1</option>
+              <option value="RDC">RDC — Rez-de-chaussée</option>
+              <option value="ETG1">ETG1 — Étage 1</option>
+              <option value="ETG2">ETG2 — Étage 2</option>
+              <option value="ETG3">ETG3 — Étage 3</option>
+              <option value="ETG4">ETG4 — Étage 4</option>
+              <option value="ETG5">ETG5 — Étage 5</option>
+              <option value="TER">TER — Terrasse</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Lot</label>
+            <input formControlName="lot" class="field-input" placeholder="Ex: Lot 1" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Nb planches</label>
+            <input formControlName="nombrePlanches" type="number" min="1" class="field-input" placeholder="1" />
+          </div>
+          <div class="field-group">
+            <label>Date d'engagement</label>
+            <input formControlName="dateEngagement" type="date" class="field-input" />
+          </div>
+        </div>
         <div class="field-group">
-          <label>Nom <span class="req">*</span></label>
-          <input formControlName="nom" class="field-input" placeholder="Ex: Plan coffrage RDC" />
+          <label>Projeteur assigné</label>
+          @if (loadingProjeteurs()) {
+            <p class="loading-hint">Chargement…</p>
+          } @else {
+            <select formControlName="projeteurId" class="field-input field-select">
+              <option value="">— Sélectionner un projeteur —</option>
+              @for (u of projeteurs(); track u.id) {
+                <option [value]="u.id">{{ u.prenom }} {{ u.nom }}</option>
+              }
+            </select>
+          }
         </div>
         <div class="field-group">
           <label>Type de plan <span class="req">*</span></label>
@@ -277,10 +393,10 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
         </div>
         <!-- Fichier PDF -->
         <div class="field-group">
-          <label>Fichier PDF du plan</label>
+          <label>Fichier du plan</label>
           <label class="file-drop-zone" [class.has-file]="selectedPlanFile()" for="plan-file-input">
             @if (selectedPlanFile()) {
-              <mat-icon class="pdf-icon">picture_as_pdf</mat-icon>
+              <mat-icon class="pdf-icon">{{ fileIcon(selectedPlanFile()!.name) }}</mat-icon>
               <span class="file-name">{{ selectedPlanFile()!.name }}</span>
               <span class="file-size">{{ (selectedPlanFile()!.size / 1024 / 1024).toFixed(1) }} Mo</span>
               <button type="button" class="file-clear-btn" (click)="$event.preventDefault(); selectedPlanFile.set(null)">
@@ -288,11 +404,12 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
               </button>
             } @else {
               <mat-icon>upload_file</mat-icon>
-              <span>Cliquer pour joindre le PDF</span>
-              <span class="file-hint">PDF · max 50 Mo</span>
+              <span>Cliquer pour joindre le fichier</span>
+              <span class="file-hint">PDF · Word · Excel · DWG · max 50 Mo</span>
             }
           </label>
-          <input id="plan-file-input" type="file" accept=".pdf,application/pdf"
+          <input id="plan-file-input" type="file"
+                 accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg"
                  class="file-hidden-input" (change)="onPlanFileChange($event)" />
         </div>
         <div class="dialog-actions">
@@ -369,6 +486,40 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
     .info-label { font-size: .73rem; font-weight: 600; color: var(--db-text-secondary);
       text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
     .info-val { font-size: .9rem; font-weight: 500; color: var(--db-text); }
+
+    /* Avancement */
+    .av-section { margin-bottom: 32px; }
+    .av-layout { display: flex; gap: 16px; flex-wrap: wrap; }
+    .av-progress-card {
+      flex: 1; min-width: 260px;
+      background: #fff; border: 1px solid var(--db-border); border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .av-progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .av-progress-label { font-size: .82rem; font-weight: 600; color: var(--db-text-secondary); }
+    .av-progress-pct { font-size: 1.4rem; font-weight: 800; color: var(--db-navy); }
+    .av-progress-bar {
+      height: 10px; background: #F3F4F6; border-radius: 99px; overflow: hidden; margin-bottom: 8px;
+    }
+    .av-progress-fill { height: 100%; border-radius: 99px; transition: width .4s ease; }
+    .av-progress-sub { font-size: .75rem; color: var(--db-text-secondary); }
+    .av-tables { display: flex; gap: 12px; flex-wrap: wrap; }
+    .av-table-card {
+      background: #fff; border: 1px solid var(--db-border); border-radius: 8px; overflow: hidden;
+      min-width: 180px;
+    }
+    .av-table-title {
+      padding: 8px 14px; font-size: .75rem; font-weight: 700;
+      color: var(--db-text-secondary); background: #F8FAFC;
+      border-bottom: 1px solid var(--db-border); text-transform: uppercase; letter-spacing: .05em;
+    }
+    .av-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .av-table th {
+      padding: 6px 14px; font-size: .7rem; font-weight: 600;
+      color: var(--db-text-secondary); text-align: left;
+    }
+    .av-table td { padding: 5px 14px; border-top: 1px solid #F3F4F6; color: var(--db-text); }
+    .av-table .tc { text-align: right; font-weight: 600; color: var(--db-navy); }
 
     /* Section header */
     .section-header {
@@ -588,6 +739,7 @@ export class AffaireDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private affaireSvc = inject(AffaireService);
   private planSvc = inject(PlanService);
+  private userSvc = inject(UserService);
   private auth = inject(AuthService);
   private snack = inject(MatSnackBar);
   private fb = inject(FormBuilder);
@@ -601,6 +753,8 @@ export class AffaireDetailComponent implements OnInit {
   submitting = signal(false);
   submittingPlan = signal(false);
   selectedPlanFile = signal<File | null>(null);
+  projeteurs = signal<UtilisateurDto[]>([]);
+  loadingProjeteurs = signal(false);
 
   readonly STATUT_AFFAIRE = STATUT_AFFAIRE;
   readonly STATUT_PLAN = STATUT_PLAN;
@@ -618,7 +772,15 @@ export class AffaireDetailComponent implements OnInit {
 
   planForm = this.fb.group({
     nom: ['', Validators.required],
+    numeroPlan: [''],
+    typePrestation: ['PDB', Validators.required],
     typePlan: ['COF', Validators.required],
+    auteur: [''],
+    niveau: [''],
+    lot: [''],
+    nombrePlanches: [null as number | null],
+    dateEngagement: [''],
+    projeteurId: [''],
     commentaire: [''],
   });
 
@@ -630,6 +792,58 @@ export class AffaireDetailComponent implements OnInit {
   canCreate(): boolean {
     const r = this.auth.userRole();
     return ['ADMIN', 'CHEF_PROJET', 'PROJETEUR'].includes(r ?? '');
+  }
+
+  /** Renvoie les entrées d'un objet sous forme de tableau pour @for */
+  objectEntries(obj: Record<string, number> | undefined): [string, number][] {
+    return Object.entries(obj ?? {});
+  }
+
+  etatLabel(key: string): string {
+    const MAP: Record<string, string> = {
+      DEMARRE:                'Démarré',
+      PREMIER_INDICE_DIFFUSE: '1er indice diffusé',
+      CONTROLE_EXTERNE:       'Contrôle externe',
+      VAO:                    'VAO',
+      VISE_BPE:               'Visa BPE (VSO/VAC)',
+    };
+    return MAP[key] ?? key;
+  }
+
+  private getPlanScore(plan: Plan, pct: Record<string, number>): number {
+    const d    = pct['DEMARRE']                ?? 25;
+    const pid  = pct['PREMIER_INDICE_DIFFUSE'] ?? 30;
+    const ce   = pct['CONTROLE_EXTERNE']       ?? 10;
+    const vao  = pct['VAO']                    ?? 15;
+    const vbpe = pct['VISE_BPE']               ?? 20;
+    const hasVersions  = (plan.versions?.length ?? 0) > 0;
+    const multiVersion = (plan.versions?.length ?? 0) > 1;
+    switch (plan.statut) {
+      case 'VISE':                  return d + pid + ce + (multiVersion ? vao : 0) + vbpe;
+      case 'EN_CONTROLE_TECHNIQUE':
+      case 'EN_CONTROLE_EXTERNE':   return d + pid + ce;
+      case 'EN_CONTROLE_INTERNE':
+      case 'EMIS':                  return d + pid;
+      case 'BROUILLON':             return hasVersions ? d : 0;
+      default:                      return 0;
+    }
+  }
+
+  calculAvancement(): number {
+    const a  = this.affaire();
+    const ps = this.plans();
+    if (!a || !ps.length) return 0;
+    const pct  = a.pourcentagesParEtat  ?? {};
+    const coef = a.coefficientsParType  ?? {};
+    const maxScore = Object.values(pct).reduce((s, v) => s + v, 0) || 100;
+    let weighted = 0;
+    let total    = 0;
+    for (const plan of ps) {
+      const c = (coef as Record<string, number>)[plan.typePlan] ?? 1;
+      weighted += this.getPlanScore(plan, pct) * c;
+      total    += maxScore * c;
+    }
+    return total > 0 ? Math.round(weighted / total * 100) : 0;
   }
 
   ngOnInit(): void {
@@ -684,8 +898,22 @@ export class AffaireDetailComponent implements OnInit {
     });
   }
 
+  fileIcon(name: string): string {
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'picture_as_pdf';
+    if (ext === 'doc' || ext === 'docx') return 'description';
+    if (ext === 'xls' || ext === 'xlsx') return 'table_chart';
+    if (ext === 'dwg') return 'architecture';
+    return 'insert_drive_file';
+  }
+
   openPlanDialog(): void {
-    this.planForm.reset({ typePlan: 'COF', nom: '', commentaire: '' });
+    this.planForm.reset({ typePlan: 'COF', typePrestation: 'PDB', nom: '', commentaire: '' });
+    this.loadingProjeteurs.set(true);
+    this.userSvc.getByRole('PROJETEUR').subscribe({
+      next: users => { this.projeteurs.set(users.filter(u => u.actif)); this.loadingProjeteurs.set(false); },
+      error: () => this.loadingProjeteurs.set(false),
+    });
     this.selectedPlanFile.set(null);
     this.showPlanDialog.set(true);
   }
@@ -711,7 +939,15 @@ export class AffaireDetailComponent implements OnInit {
       const payload: CreatePlanPayload = {
         affaireId: this.affaire()!.id,
         nom: v.nom!,
+        numeroPlan: v.numeroPlan || undefined,
         typePlan: v.typePlan!,
+        typePrestation: (v.typePrestation as any) || undefined,
+        auteur: v.auteur || undefined,
+        niveau: v.niveau || undefined,
+        lot: v.lot || undefined,
+        nombrePlanches: v.nombrePlanches ?? undefined,
+        dateEngagement: v.dateEngagement || undefined,
+        projeteurId: v.projeteurId || undefined,
         commentaire: v.commentaire || undefined,
         fichierUrl,
       };
@@ -734,7 +970,7 @@ export class AffaireDetailComponent implements OnInit {
       this.planSvc.uploadFile(file).subscribe({
         next: ({ fichierUrl }) => doCreate(fichierUrl),
         error: () => {
-          this.snack.open('Erreur lors de l\'upload du PDF', 'Fermer', { duration: 4000 });
+          this.snack.open('Erreur lors de l\'upload du fichier', 'Fermer', { duration: 4000 });
           this.submittingPlan.set(false);
         }
       });

@@ -13,12 +13,16 @@ import java.util.List;
 @Builder
 public class ControleDto {
     private String id;
+    private String reference;
     private String planId;
     private String versionId;
+    private String indiceExterneImpacte;
     private TypeControle typeControle;
     private String controleurId;
+    private String projeteurId;
     private LocalDateTime dateControle;
     private Decision decision;
     private String remarque;
+    private String fichierPDF;
     private List<Commentaire> commentaires;
 }

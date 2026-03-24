@@ -6,8 +6,10 @@ import lombok.Data;
 
 @Data
 public class DecisionRequest {
-    @NotNull(message = "La décision est obligatoire")
-    private Decision decision;
+    @NotNull(message = "L'avis est obligatoire")
+    private Decision decision;   // VSO | VAC | VAO
 
-    private String remarque;
+    private String remarque;     // Obligatoire si VAO
+
+    private String fichierPDF;   // URL du rapport PDF (optionnel)
 }

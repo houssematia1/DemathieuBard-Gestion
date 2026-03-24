@@ -1,13 +1,11 @@
 package com.btp.plan.service;
 
 import com.btp.plan.config.RabbitMQConfig;
-import com.btp.plan.dto.AddVersionRequest;
-import com.btp.plan.dto.CreatePlanRequest;
-import com.btp.plan.dto.PlanDto;
-import com.btp.plan.dto.VersionDto;
+import com.btp.plan.dto.*;
 import com.btp.plan.event.BtpEvent;
 import com.btp.plan.exception.ResourceNotFoundException;
 import com.btp.plan.model.*;
+import com.btp.plan.repository.PlanArchiveRepository;
 import com.btp.plan.repository.PlanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,15 +26,13 @@ import java.util.stream.Collectors;
 public class PlanService {
 
     private final PlanRepository planRepository;
+    private final PlanArchiveRepository planArchiveRepository;
     private final RabbitTemplate rabbitTemplate;
 
     /**
-     * Crée un plan en BROUILLON.
-     * La version initiale reçoit l'indice "-" (pas encore émis officiellement).
-     * L'indice "A" sera assigné lors de l'émission (POST /{id}/emettre).
+     * Crée un plan en BROUILLON avec la version initiale (indice "-").
      */
     public PlanDto create(CreatePlanRequest request, String userId) {
-        // Version initiale : numéro 1, indice "-" (brouillon interne)
         Version v1 = Version.builder()
                 .idVersion(UUID.randomUUID().toString())
                 .numeroVersion(1)
@@ -46,18 +43,32 @@ public class PlanService {
                 .uploadePar(userId)
                 .build();
 
+        String numeroPlan = request.getNumeroPlan() != null && !request.getNumeroPlan().isBlank()
+                ? request.getNumeroPlan()
+                : null;
+
         Plan plan = Plan.builder()
+                .numeroPlan(numeroPlan)
                 .affaireId(request.getAffaireId())
                 .nom(request.getNom())
                 .typePlan(request.getTypePlan())
+                .typePrestation(request.getTypePrestation() != null ? request.getTypePrestation() : TypePrestation.PDB)
                 .niveau(request.getNiveau())
                 .lot(request.getLot())
+                .auteur(request.getAuteur())
                 .projeteurId(request.getProjeteurId() != null ? request.getProjeteurId() : userId)
+                .nombrePlanches(request.getNombrePlanches())
+                .dateEngagement(request.getDateEngagement())
+                .indiceInterne("-")
                 .statut(StatutPlan.BROUILLON)
+                .etat(EtatPlan.EN_COURS)
                 .creePar(userId)
                 .build();
 
         plan.getVersions().add(v1);
+        if (request.getFichierUrl() != null && !request.getFichierUrl().isBlank()) {
+            plan.getFichiers().add(request.getFichierUrl());
+        }
         plan.getHistorique().add(HistoriqueEntry.builder()
                 .action("CREATION")
                 .date(LocalDateTime.now())
@@ -71,13 +82,61 @@ public class PlanService {
     }
 
     /**
-     * Émet officiellement un plan (BROUILLON → EMIS).
-     *
-     * Règles (CLAUDE-METIER.md §5 Étape 2) :
-     * - Le plan doit être en statut BROUILLON
-     * - L'indice de la dernière version passe de "-" à "A" (première émission)
-     * - Les émissions suivantes utilisent l'indice déjà attribué lors de addVersion
-     * - Publie l'événement RabbitMQ "plan.emis"
+     * Modifie un plan (archive l'état courant avant modification).
+     */
+    public PlanDto update(String id, UpdatePlanRequest request, String userId) {
+        Plan plan = getOrThrow(id);
+        if (plan.isArchived()) {
+            throw new IllegalStateException("Ce plan est archivé et ne peut plus être modifié");
+        }
+
+        // Archiver l'état actuel avant modification
+        archiverSnapshot(plan, userId);
+
+        if (request.getNom() != null)             plan.setNom(request.getNom());
+        if (request.getTypePrestation() != null)  plan.setTypePrestation(request.getTypePrestation());
+        if (request.getNiveau() != null)          plan.setNiveau(request.getNiveau());
+        if (request.getLot() != null)             plan.setLot(request.getLot());
+        if (request.getAuteur() != null)          plan.setAuteur(request.getAuteur());
+        if (request.getProjeteurId() != null)     plan.setProjeteurId(request.getProjeteurId());
+        if (request.getNombrePlanches() != null)  plan.setNombrePlanches(request.getNombrePlanches());
+        if (request.getDateEngagement() != null)  plan.setDateEngagement(request.getDateEngagement());
+
+        plan.getHistorique().add(HistoriqueEntry.builder()
+                .action("MODIFICATION")
+                .date(LocalDateTime.now())
+                .utilisateurId(userId)
+                .details("Plan modifié")
+                .build());
+
+        Plan saved = planRepository.save(plan);
+
+        // Notifier
+        publishEvent("plan.modifie", saved.getId(), "PLAN", userId,
+                "Le plan '" + saved.getNom() + "' a été modifié", saved.getProjeteurId());
+
+        return toDto(saved);
+    }
+
+    /**
+     * Suppression logique (archived = true).
+     */
+    public void softDelete(String id, String userId) {
+        Plan plan = getOrThrow(id);
+        archiverSnapshot(plan, userId);
+        plan.setArchived(true);
+        plan.getHistorique().add(HistoriqueEntry.builder()
+                .action("SUPPRESSION")
+                .date(LocalDateTime.now())
+                .utilisateurId(userId)
+                .details("Plan supprimé (archivé logiquement)")
+                .build());
+        planRepository.save(plan);
+        log.info("Plan {} supprimé (archivé logiquement)", id);
+    }
+
+    /**
+     * Émet officiellement un plan (BROUILLON → EMIS, indice "-" → "A").
      */
     public PlanDto emettre(String id, String userId) {
         Plan plan = getOrThrow(id);
@@ -87,20 +146,19 @@ public class PlanService {
                     "Seul un plan en BROUILLON peut être émis. Statut actuel : " + plan.getStatut());
         }
 
-        // Récupérer la dernière version et lui attribuer l'indice officiel
         Version derniereVersion = getLastVersion(plan);
         if (derniereVersion == null) {
             throw new IllegalStateException("Le plan n'a aucune version à émettre");
         }
 
-        // Si l'indice est encore "-", c'est la première émission → indice "A"
         if ("-".equals(derniereVersion.getIndice())) {
             derniereVersion.setIndice("A");
         }
-        // Sinon l'indice a déjà été défini lors de addVersion (B, C, D…)
 
         plan.setEmetteurId(userId);
         plan.setStatut(StatutPlan.EMIS);
+        plan.setIndiceInterne(derniereVersion.getIndice());
+        plan.setIndiceExterne(derniereVersion.getIndice());
         plan.getHistorique().add(HistoriqueEntry.builder()
                 .action("EMISSION")
                 .date(LocalDateTime.now())
@@ -110,34 +168,22 @@ public class PlanService {
 
         Plan saved = planRepository.save(plan);
 
-        // Événement RabbitMQ
-        BtpEvent event = BtpEvent.builder()
-                .routingKey("plan.emis")
-                .entiteId(saved.getId())
-                .entiteType("PLAN")
-                .userId(userId)
-                .message("Le plan '" + saved.getNom() + "' a été émis (Indice "
-                        + derniereVersion.getIndice() + ")")
-                .timestamp(LocalDateTime.now())
-                .build();
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, "plan.emis", event);
-        log.info("Événement plan.emis publié — plan {} indice {}", id, derniereVersion.getIndice());
+        publishEvent("plan.emis", saved.getId(), "PLAN", userId,
+                "Le plan '" + saved.getNom() + "' a été émis (Indice " + derniereVersion.getIndice() + ")",
+                saved.getProjeteurId());
 
         return toDto(saved);
     }
 
     /**
      * Soumet un plan EMIS au contrôle interne.
-     *
-     * Règle : le plan doit être EMIS (pas BROUILLON — il faut d'abord emettre).
      */
     public PlanDto soumettre(String id, String userId) {
         Plan plan = getOrThrow(id);
 
         if (plan.getStatut() != StatutPlan.EMIS) {
             throw new IllegalStateException(
-                    "Le plan doit être EMIS avant de pouvoir être soumis au contrôle. "
-                    + "Statut actuel : " + plan.getStatut());
+                    "Le plan doit être EMIS avant d'être soumis. Statut actuel : " + plan.getStatut());
         }
 
         plan.setStatut(StatutPlan.EN_CONTROLE_INTERNE);
@@ -150,31 +196,41 @@ public class PlanService {
 
         Plan saved = planRepository.save(plan);
 
-        BtpEvent event = BtpEvent.builder()
-                .routingKey("plan.soumis")
-                .entiteId(saved.getId())
-                .entiteType("PLAN")
-                .userId(userId)
-                .message("Le plan '" + saved.getNom() + "' a été soumis au contrôle interne")
-                .timestamp(LocalDateTime.now())
-                .build();
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, "plan.soumis", event);
-        log.info("Événement plan.soumis publié pour le plan {}", id);
+        publishEvent("plan.soumis", saved.getId(), "PLAN", userId,
+                "Le plan '" + saved.getNom() + "' a été soumis au contrôle interne",
+                saved.getProjeteurId());
 
         return toDto(saved);
     }
 
     /**
-     * Ajoute une nouvelle version après un rejet.
-     *
-     * L'indice de la nouvelle version est la prochaine lettre après toutes
-     * les versions officiellement émises (indice != "-").
-     * Ex : si les versions A et B ont été émises → nouvelle version = C
+     * Ajoute un fichier à la liste des fichiers du plan.
+     */
+    public PlanDto addFichier(String id, String fichierUrl, String userId) {
+        Plan plan = getOrThrow(id);
+        plan.getFichiers().add(fichierUrl);
+        plan.getHistorique().add(HistoriqueEntry.builder()
+                .action("FICHIER_AJOUTE")
+                .date(LocalDateTime.now())
+                .utilisateurId(userId)
+                .details("Fichier ajouté : " + fichierUrl)
+                .build());
+
+        Plan saved = planRepository.save(plan);
+
+        publishEvent("plan.fichier-ajoute", saved.getId(), "PLAN", userId,
+                "Un fichier a été ajouté au plan '" + saved.getNom() + "'",
+                saved.getProjeteurId());
+
+        return toDto(saved);
+    }
+
+    /**
+     * Ajoute une nouvelle version après un rejet (VAO).
      */
     public PlanDto addVersion(String id, AddVersionRequest request, String userId) {
         Plan plan = getOrThrow(id);
 
-        // Calculer le prochain indice : compter les versions réellement émises (indice != "-")
         long emissionsCount = plan.getVersions().stream()
                 .filter(v -> !"-".equals(v.getIndice()))
                 .count();
@@ -192,29 +248,24 @@ public class PlanService {
                 .build();
 
         plan.getVersions().add(newVersion);
-        plan.setStatut(StatutPlan.BROUILLON);  // Le projeteur doit ré-émettre
+        plan.setStatut(StatutPlan.BROUILLON);
+        plan.setIndiceInterne(nextIndice);
         plan.getHistorique().add(HistoriqueEntry.builder()
                 .action("NOUVELLE_VERSION")
                 .date(LocalDateTime.now())
                 .utilisateurId(userId)
-                .details("Nouvelle version " + nextNumero + " créée — Indice " + nextIndice
-                        + " (en attente d'émission)")
+                .details("Nouvelle version " + nextNumero + " — Indice " + nextIndice)
                 .build());
+
+        if (request.getFichierUrl() != null && !request.getFichierUrl().isBlank()) {
+            plan.getFichiers().add(request.getFichierUrl());
+        }
 
         Plan saved = planRepository.save(plan);
 
-        // Événement RabbitMQ
-        BtpEvent event = BtpEvent.builder()
-                .routingKey("plan.nouvelle-version")
-                .entiteId(saved.getId())
-                .entiteType("PLAN")
-                .userId(userId)
-                .message("Nouvelle version (Indice " + nextIndice + ") créée pour le plan '"
-                        + saved.getNom() + "'")
-                .timestamp(LocalDateTime.now())
-                .build();
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, "plan.nouvelle-version", event);
-        log.info("Nouvelle version {} (Indice {}) ajoutée au plan {}", nextNumero, nextIndice, id);
+        publishEvent("plan.nouvelle-version", saved.getId(), "PLAN", userId,
+                "Nouvelle version (Indice " + nextIndice + ") créée pour le plan '" + saved.getNom() + "'",
+                saved.getProjeteurId());
 
         return toDto(saved);
     }
@@ -233,24 +284,55 @@ public class PlanService {
                 .details("Statut mis à jour → " + statut + " (via controle-service)")
                 .build());
         Plan saved = planRepository.save(plan);
-        log.info("Statut du plan {} mis à jour → {}", id, statut);
+        log.info("Statut du plan {} → {}", id, statut);
         return toDto(saved);
     }
 
+    /**
+     * Met à jour l'état du plan — appelé par controle-service via REST.
+     */
+    public PlanDto updateEtat(String id, String etat) {
+        Plan plan = getOrThrow(id);
+        EtatPlan nouvelEtat = EtatPlan.valueOf(etat);
+        plan.setEtat(nouvelEtat);
+        plan.getHistorique().add(HistoriqueEntry.builder()
+                .action("CHANGEMENT_ETAT")
+                .date(LocalDateTime.now())
+                .utilisateurId("SYSTEM")
+                .details("État mis à jour → " + etat + " (via controle-service)")
+                .build());
+
+        Plan saved = planRepository.save(plan);
+        log.info("État du plan {} → {}", id, etat);
+
+        // Notifier le changement d'état
+        publishEvent("plan.etat-change", saved.getId(), "PLAN", "SYSTEM",
+                "Le plan '" + saved.getNom() + "' a changé d'état : " + etat,
+                saved.getProjeteurId());
+
+        return toDto(saved);
+    }
+
+    /** Retourne l'historique des archives d'un plan. */
+    public List<PlanArchive> getArchives(String id) {
+        getOrThrow(id); // vérifier existence
+        return planArchiveRepository.findByPlanIdOrderByDateArchiveDesc(id);
+    }
+
     public Page<PlanDto> findByAffaire(String affaireId, Pageable pageable) {
-        return planRepository.findByAffaireId(affaireId, pageable).map(this::toDto);
+        return planRepository.findByAffaireIdAndArchivedFalse(affaireId, pageable).map(this::toDto);
     }
 
     public Page<PlanDto> search(String typePlan, String statut, Pageable pageable) {
         if (typePlan != null && !typePlan.isBlank() && statut != null && !statut.isBlank()) {
-            return planRepository.findByTypePlanAndStatut(
+            return planRepository.findByTypePlanAndStatutAndArchivedFalse(
                     TypePlan.valueOf(typePlan), StatutPlan.valueOf(statut), pageable).map(this::toDto);
         } else if (typePlan != null && !typePlan.isBlank()) {
-            return planRepository.findByTypePlan(TypePlan.valueOf(typePlan), pageable).map(this::toDto);
+            return planRepository.findByTypePlanAndArchivedFalse(TypePlan.valueOf(typePlan), pageable).map(this::toDto);
         } else if (statut != null && !statut.isBlank()) {
-            return planRepository.findByStatut(StatutPlan.valueOf(statut), pageable).map(this::toDto);
+            return planRepository.findByStatutAndArchivedFalse(StatutPlan.valueOf(statut), pageable).map(this::toDto);
         }
-        return planRepository.findAll(pageable).map(this::toDto);
+        return planRepository.findByArchivedFalse(pageable).map(this::toDto);
     }
 
     public PlanDto findById(String id) {
@@ -261,6 +343,49 @@ public class PlanService {
         return getOrThrow(id).getVersions().stream()
                 .map(this::toVersionDto)
                 .collect(Collectors.toList());
+    }
+
+    /* ── Archivage ─────────────────────────────────────────── */
+
+    private void archiverSnapshot(Plan plan, String modifiePar) {
+        PlanArchive archive = PlanArchive.builder()
+                .planId(plan.getId())
+                .dateArchive(LocalDateTime.now())
+                .modifiePar(modifiePar)
+                .numeroPlan(plan.getNumeroPlan())
+                .nom(plan.getNom())
+                .typePlanStr(plan.getTypePlan() != null ? plan.getTypePlan().name() : null)
+                .typePrestationStr(plan.getTypePrestation() != null ? plan.getTypePrestation().name() : null)
+                .niveauStr(plan.getNiveau() != null ? plan.getNiveau().name() : null)
+                .lot(plan.getLot())
+                .auteur(plan.getAuteur())
+                .projeteurId(plan.getProjeteurId())
+                .nombrePlanches(plan.getNombrePlanches())
+                .indiceInterne(plan.getIndiceInterne())
+                .indiceExterne(plan.getIndiceExterne())
+                .statutStr(plan.getStatut() != null ? plan.getStatut().name() : null)
+                .etatStr(plan.getEtat() != null ? plan.getEtat().name() : null)
+                .fichiers(new ArrayList<>(plan.getFichiers()))
+                .versions(new ArrayList<>(plan.getVersions()))
+                .build();
+        planArchiveRepository.save(archive);
+    }
+
+    /* ── Event helper ──────────────────────────────────────── */
+
+    private void publishEvent(String routingKey, String entiteId, String entiteType,
+                              String userId, String message, String destinataireId) {
+        BtpEvent event = BtpEvent.builder()
+                .routingKey(routingKey)
+                .entiteId(entiteId)
+                .entiteType(entiteType)
+                .userId(userId)
+                .message(message)
+                .destinataireId(destinataireId)
+                .timestamp(LocalDateTime.now())
+                .build();
+        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, routingKey, event);
+        log.debug("Événement {} publié pour {}", routingKey, entiteId);
     }
 
     /* ── Private helpers ─────────────────────────────────────────── */
@@ -282,16 +407,26 @@ public class PlanService {
         VersionDto derniere = versions.isEmpty() ? null : versions.get(versions.size() - 1);
         return PlanDto.builder()
                 .id(p.getId())
+                .numeroPlan(p.getNumeroPlan())
                 .affaireId(p.getAffaireId())
                 .nom(p.getNom())
                 .typePlan(p.getTypePlan())
+                .typePrestation(p.getTypePrestation())
                 .niveau(p.getNiveau())
                 .lot(p.getLot())
+                .auteur(p.getAuteur())
                 .projeteurId(p.getProjeteurId())
                 .emetteurId(p.getEmetteurId())
+                .nombrePlanches(p.getNombrePlanches())
+                .dateEngagement(p.getDateEngagement())
+                .indiceInterne(p.getIndiceInterne())
+                .indiceExterne(p.getIndiceExterne())
                 .statut(p.getStatut())
+                .etat(p.getEtat())
+                .archived(p.isArchived())
                 .dateCreation(p.getDateCreation())
                 .creePar(p.getCreePar())
+                .fichiers(p.getFichiers())
                 .versions(versions)
                 .derniereVersion(derniere)
                 .historique(p.getHistorique())

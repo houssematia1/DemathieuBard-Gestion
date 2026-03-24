@@ -1,28 +1,17 @@
 package com.btp.plan.model;
 
 /**
- * Statuts du workflow BTP selon CLAUDE-METIER.md.
- * BROUILLON → EMIS → EN_CONTROLE_INTERNE → BPE/BAO/A_MODIFIER
- *                   → EN_CONTROLE_EXTERNE → FAVORABLE/DEFAVORABLE → VISE
+ * Statut technique du plan dans le workflow de contrôle.
+ * Distinct de EtatPlan (NON_COMMENCE / EN_COURS / VISE_BPE) qui représente
+ * l'état du point de vue de la production chantier.
+ *
+ * BROUILLON → EMIS → EN_CONTROLE_* → (VSO/VAC → EMIS) | (VAO → BROUILLON) → VISE
  */
 public enum StatutPlan {
-    // Phase 1 : création
-    BROUILLON,
-
-    // Phase 2 : émission officielle (indice A, B, C...)
-    EMIS,
-
-    // Phase 3 : contrôle interne
-    EN_CONTROLE_INTERNE,
-    BON_POUR_EXECUTION,      // BPE — contrôle interne OK
-    BON_AVEC_OBSERVATIONS,   // BAO — OK avec remarques mineures
-    A_MODIFIER,              // Rejeté, retour au projeteur
-
-    // Phase 4 : contrôle externe
-    EN_CONTROLE_EXTERNE,
-    FAVORABLE,               // Contrôle externe OK
-    DEFAVORABLE,             // Contrôle externe refusé, retour projeteur
-
-    // Phase finale : visa
-    VISE
+    BROUILLON,             // Plan en cours de rédaction
+    EMIS,                  // Émis officiellement (indice A, B, C…)
+    EN_CONTROLE_INTERNE,   // Soumis au contrôle interne
+    EN_CONTROLE_EXTERNE,   // Soumis au contrôle externe
+    EN_CONTROLE_TECHNIQUE, // Soumis au contrôle technique
+    VISE                   // Visa accordé (contrôle VISA + VSO/VAC)
 }

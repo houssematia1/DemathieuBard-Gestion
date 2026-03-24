@@ -11,8 +11,8 @@ import { forkJoin } from 'rxjs';
 import { PlanService } from '../../../core/services/plan.service';
 import { ControleService, CreateControlePayload, DecisionPayload } from '../../../core/services/controle.service';
 import { UserService } from '../../../core/services/user.service';
-import { Plan, STATUT_PLAN, TYPE_PLAN, Version, getStatutPlan } from '../../../core/models/plan.model';
-import { Controle, DECISION_META } from '../../../core/models/controle.model';
+import { Plan, STATUT_PLAN, ETAT_PLAN, TYPE_PLAN, Version, getStatutPlan } from '../../../core/models/plan.model';
+import { Controle, DECISION_META, TYPE_CONTROLE_META } from '../../../core/models/controle.model';
 import { UtilisateurDto } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/auth/auth.service';
 
@@ -55,10 +55,10 @@ import { AuthService } from '../../../core/auth/auth.service';
           @if (p.derniereVersion) {
             <span class="indice-tag">Indice {{ p.derniereVersion.indice }}</span>
           }
-          @if (p.statut === 'A_MODIFIER' || p.statut === 'DEFAVORABLE') {
+          @if (p.statut === 'BROUILLON' && hasVAO()) {
             <span class="refuse-tag">
               <mat-icon>warning</mat-icon>
-              {{ p.statut === 'A_MODIFIER' ? 'À modifier' : 'Défavorable' }}
+              Observations — À modifier
             </span>
           }
           @if (p.statut === 'VISE') {
@@ -77,7 +77,7 @@ import { AuthService } from '../../../core/auth/auth.service';
             <div class="pipeline-step"
                  [class.done]="getStatutPlan(p.statut).step > step.step"
                  [class.current]="p.statut === step.key"
-                 [class.refused]="(p.statut === 'A_MODIFIER' || p.statut === 'DEFAVORABLE') && step.key === 'EN_CONTROLE_INTERNE'">
+                 [class.refused]="false">
               <div class="step-node">
                 @if (getStatutPlan(p.statut).step > step.step) {
                   <mat-icon class="step-check">check</mat-icon>
@@ -119,11 +119,6 @@ import { AuthService } from '../../../core/auth/auth.service';
           <mat-icon>fact_check</mat-icon> Créer un contrôle
         </button>
       }
-      @if (canViser(p)) {
-        <button class="btn-action accent" (click)="applyVisa()">
-          <mat-icon>verified</mat-icon> Apposer le visa
-        </button>
-      }
     </div>
 
     <!-- ── Versions Timeline ────────────────────────────────────── -->
@@ -158,7 +153,7 @@ import { AuthService } from '../../../core/auth/auth.service';
                      [style.color]="DECISION_META[c.decision].color"
                      [style.borderColor]="DECISION_META[c.decision].color + '44'">
                   <mat-icon class="chip-icon">{{ DECISION_META[c.decision].icon }}</mat-icon>
-                  <span>{{ c.typeControle === 'INTERNE' ? 'CI' : 'CE' }} — {{ DECISION_META[c.decision].label }}</span>
+                  <span>{{ TYPE_CONTROLE_META[c.typeControle].label }} — {{ DECISION_META[c.decision].label }}</span>
                 </div>
               }
             </div>
@@ -206,24 +201,15 @@ import { AuthService } from '../../../core/auth/auth.service';
                 <td (click)="$event.stopPropagation()">
                   @if (canDecide(c)) {
                     <div class="row-actions-inline">
-                      @if (c.typeControle === 'INTERNE') {
-                        <button class="dec-btn valide" (click)="decide(c, 'BPE')" matTooltip="Bon Pour Exécution">
-                          <mat-icon>check</mat-icon>
-                        </button>
-                        <button class="dec-btn bao" (click)="decide(c, 'BAO')" matTooltip="Bon Avec Observations">
-                          <mat-icon>task_alt</mat-icon>
-                        </button>
-                        <button class="dec-btn refuse" (click)="decide(c, 'A_MODIFIER')" matTooltip="À modifier">
-                          <mat-icon>edit</mat-icon>
-                        </button>
-                      } @else {
-                        <button class="dec-btn valide" (click)="decide(c, 'FAVORABLE')" matTooltip="Favorable">
-                          <mat-icon>verified</mat-icon>
-                        </button>
-                        <button class="dec-btn refuse" (click)="decide(c, 'DEFAVORABLE')" matTooltip="Défavorable">
-                          <mat-icon>cancel</mat-icon>
-                        </button>
-                      }
+                      <button class="dec-btn valide" (click)="decide(c, 'VSO')" matTooltip="VSO — Visa Sans Observation">
+                        <mat-icon>check_circle</mat-icon>
+                      </button>
+                      <button class="dec-btn bao" (click)="decide(c, 'VAC')" matTooltip="VAC — Visa Avec Commentaire">
+                        <mat-icon>task_alt</mat-icon>
+                      </button>
+                      <button class="dec-btn refuse" (click)="decide(c, 'VAO')" matTooltip="VAO — Observations (remarque obligatoire)">
+                        <mat-icon>edit_note</mat-icon>
+                      </button>
                     </div>
                   }
                 </td>
@@ -253,10 +239,10 @@ import { AuthService } from '../../../core/auth/auth.service';
                     placeholder="Modifications apportées…"></textarea>
         </div>
         <div class="field-group">
-          <label>Fichier PDF de la version</label>
+          <label>Fichier de la version</label>
           <label class="file-drop-zone" [class.has-file]="selectedVersionFile()" for="version-file-input">
             @if (selectedVersionFile()) {
-              <mat-icon class="pdf-icon">picture_as_pdf</mat-icon>
+              <mat-icon class="pdf-icon">{{ fileIcon(selectedVersionFile()!.name) }}</mat-icon>
               <span class="file-name">{{ selectedVersionFile()!.name }}</span>
               <span class="file-size">{{ (selectedVersionFile()!.size / 1024 / 1024).toFixed(1) }} Mo</span>
               <button type="button" class="file-clear-btn" (click)="$event.preventDefault(); selectedVersionFile.set(null)">
@@ -264,11 +250,12 @@ import { AuthService } from '../../../core/auth/auth.service';
               </button>
             } @else {
               <mat-icon>upload_file</mat-icon>
-              <span>Cliquer pour joindre le PDF</span>
-              <span class="file-hint">PDF · max 50 Mo</span>
+              <span>Cliquer pour joindre le fichier</span>
+              <span class="file-hint">PDF · Word · Excel · DWG · max 50 Mo</span>
             }
           </label>
-          <input id="version-file-input" type="file" accept=".pdf,application/pdf"
+          <input id="version-file-input" type="file"
+                 accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg"
                  class="file-hidden-input" (change)="onVersionFileChange($event)" />
         </div>
         <div class="dialog-actions">
@@ -294,9 +281,12 @@ import { AuthService } from '../../../core/auth/auth.service';
       <form [formGroup]="controleForm" (ngSubmit)="submitControle()" class="dialog-form">
         <div class="field-group">
           <label>Type de contrôle</label>
-          <select formControlName="typeControle" class="field-input field-select">
-            <option value="INTERNE">Contrôle Interne</option>
-            <option value="EXTERNE">Contrôle Externe</option>
+          <select formControlName="typeControle" class="field-input field-select"
+                  [attr.disabled]="isControle() ? true : null">
+            <option value="CONTROLE_INTERNE">Contrôle Interne</option>
+            <option value="CONTROLE_EXTERNE">Contrôle Externe</option>
+            <option value="CONTROLE_TECHNIQUE">Contrôle Technique</option>
+            <option value="VISA">Visa</option>
           </select>
         </div>
         <!-- Si l'utilisateur connecté EST contrôleur → auto-assigné, pas de dropdown -->
@@ -316,7 +306,7 @@ import { AuthService } from '../../../core/auth/auth.service';
             } @else {
               <select formControlName="controleurId" class="field-input field-select">
                 <option value="">— Sélectionner un contrôleur —</option>
-                @for (u of controleurs(); track u.id) {
+                @for (u of getFilteredControleurs(); track u.id) {
                   <option [value]="u.id">
                     {{ u.prenom }} {{ u.nom }}
                     — {{ u.role === 'CONTROLEUR_INTERNE' ? 'Ctrl. Interne' : 'Ctrl. Externe' }}
@@ -671,15 +661,16 @@ export class PlanDetailComponent implements OnInit {
   readonly getStatutPlan = getStatutPlan;
   readonly TYPE_PLAN = TYPE_PLAN;
   readonly DECISION_META = DECISION_META;
+  readonly TYPE_CONTROLE_META = TYPE_CONTROLE_META;
 
   /** Pipeline visuel du workflow BTP (CLAUDE-METIER.md §3). */
   readonly statutSteps = [
-    { key: 'BROUILLON'           as const, step: 0, label: 'Brouillon',    role: 'Projeteur'    },
-    { key: 'EMIS'                as const, step: 1, label: 'Émis',         role: 'Émetteur'     },
-    { key: 'EN_CONTROLE_INTERNE' as const, step: 2, label: 'Ctrl Interne', role: 'Ctrl. CI'     },
-    { key: 'BON_POUR_EXECUTION'  as const, step: 3, label: 'BPE / BAO',   role: 'Ctrl. CI OK'  },
-    { key: 'EN_CONTROLE_EXTERNE' as const, step: 4, label: 'Ctrl Externe', role: 'Bureau Ctrl.' },
-    { key: 'VISE'                as const, step: 5, label: 'Visé ✓',       role: 'Resp. Visa'   },
+    { key: 'BROUILLON'             as const, step: 0, label: 'Brouillon',     role: 'Projeteur'    },
+    { key: 'EMIS'                  as const, step: 1, label: 'Émis',          role: 'Émetteur'     },
+    { key: 'EN_CONTROLE_INTERNE'   as const, step: 2, label: 'Ctrl Interne',  role: 'Ctrl. CI'     },
+    { key: 'EN_CONTROLE_EXTERNE'   as const, step: 3, label: 'Ctrl Externe',  role: 'Bureau Ctrl.' },
+    { key: 'EN_CONTROLE_TECHNIQUE' as const, step: 4, label: 'Ctrl Technique',role: 'Tech.'        },
+    { key: 'VISE'                  as const, step: 5, label: 'Visé ✓',        role: 'Resp. Visa'   },
   ];
 
   versionForm = this.fb.group({
@@ -687,7 +678,7 @@ export class PlanDetailComponent implements OnInit {
   });
 
   controleForm = this.fb.group({
-    typeControle: ['INTERNE'],
+    typeControle: ['CONTROLE_INTERNE'],
     controleurId: [''],
   });
 
@@ -709,31 +700,42 @@ export class PlanDetailComponent implements OnInit {
     return p.statut === 'EMIS' && ['EMETTEUR', 'PROJETEUR', 'ADMIN'].includes(this.role);
   }
 
-  /** Peut créer une nouvelle version : plan A_MODIFIER ou DEFAVORABLE, rôle PROJETEUR */
+  /** Peut créer une nouvelle version : plan BROUILLON (après VAO) */
   canAddVersion(p: Plan): boolean {
-    return (p.statut === 'A_MODIFIER' || p.statut === 'DEFAVORABLE')
-      && ['PROJETEUR', 'EMETTEUR', 'ADMIN'].includes(this.role);
+    return p.statut === 'BROUILLON' && ['PROJETEUR', 'EMETTEUR', 'ADMIN'].includes(this.role);
   }
 
-  /** Peut créer un contrôle : plan EN_CONTROLE_INTERNE ou BON_POUR_EXECUTION/BAO pour externe */
+  /** Peut créer un contrôle selon son rôle et le statut du plan */
   canControler(p: Plan): boolean {
-    if (['CONTROLEUR_INTERNE', 'ADMIN'].includes(this.role)) {
+    if (this.role === 'ADMIN') {
+      return ['EN_CONTROLE_INTERNE', 'EN_CONTROLE_EXTERNE', 'EN_CONTROLE_TECHNIQUE'].includes(p.statut);
+    }
+    if (this.role === 'CONTROLEUR_INTERNE') {
       return p.statut === 'EN_CONTROLE_INTERNE';
     }
     if (this.role === 'CONTROLEUR_EXTERNE') {
-      return p.statut === 'BON_POUR_EXECUTION' || p.statut === 'BON_AVEC_OBSERVATIONS';
+      return p.statut === 'EN_CONTROLE_EXTERNE';
     }
     return false;
   }
 
-  /** Peut apposer le visa : plan FAVORABLE ou BON_POUR_EXECUTION (sans externe) */
-  canViser(p: Plan): boolean {
-    return (p.statut === 'FAVORABLE' || p.statut === 'BON_POUR_EXECUTION' || p.statut === 'BON_AVEC_OBSERVATIONS')
-      && ['RESPONSABLE_VISA', 'ADMIN'].includes(this.role);
+  fileIcon(name: string): string {
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'picture_as_pdf';
+    if (ext === 'doc' || ext === 'docx') return 'description';
+    if (ext === 'xls' || ext === 'xlsx') return 'table_chart';
+    if (ext === 'dwg') return 'architecture';
+    return 'insert_drive_file';
+  }
+
+  hasVAO(): boolean {
+    return this.controles().some(c => c.decision === 'VAO');
   }
 
   canDecide(c: Controle): boolean {
-    return c.decision === 'EN_ATTENTE' && ['CONTROLEUR_INTERNE', 'CONTROLEUR_EXTERNE', 'ADMIN'].includes(this.role);
+    if (c.decision !== 'EN_ATTENTE') return false;
+    if (this.role === 'ADMIN') return true;
+    return c.controleurId === this.userId;
   }
 
   /** Prochain indice pour l'affichage dans le bouton Émettre */
@@ -758,7 +760,8 @@ export class PlanDetailComponent implements OnInit {
     return this.controles().filter(c => c.versionId === versionId);
   }
 
-  versionLabel(versionId: string): string {
+  versionLabel(versionId: string | undefined): string {
+    if (!versionId) return '—';
     const v = this.plan()?.versions.find(x => x.idVersion === versionId);
     return v ? `v${v.numeroVersion} (${v.indice})` : versionId;
   }
@@ -827,7 +830,7 @@ export class PlanDetailComponent implements OnInit {
       this.planSvc.uploadFile(file).subscribe({
         next: ({ fichierUrl }) => doAddVersion(fichierUrl),
         error: () => {
-          this.snack.open('Erreur lors de l\'upload du PDF', 'Fermer', { duration: 4000 });
+          this.snack.open('Erreur lors de l\'upload du fichier', 'Fermer', { duration: 4000 });
           this.submitting.set(false);
         }
       });
@@ -836,8 +839,21 @@ export class PlanDetailComponent implements OnInit {
     }
   }
 
+  /** Déduit le typeControle à partir du statut actuel du plan */
+  private typeControleFromStatut(): string {
+    const statut = this.plan()?.statut;
+    if (statut === 'EN_CONTROLE_EXTERNE')   return 'CONTROLE_EXTERNE';
+    if (statut === 'EN_CONTROLE_TECHNIQUE') return 'CONTROLE_TECHNIQUE';
+    if (statut === 'EMIS')                  return 'VISA';
+    return 'CONTROLE_INTERNE'; // EN_CONTROLE_INTERNE ou défaut
+  }
+
   openControleDialog(): void {
-    const defaultType = this.role === 'CONTROLEUR_EXTERNE' ? 'EXTERNE' : 'INTERNE';
+    // typeControle déduit du statut du plan (priorité) ou du rôle si contrôleur
+    const defaultType = this.isControle()
+      ? (this.role === 'CONTROLEUR_EXTERNE' ? 'CONTROLE_EXTERNE' : 'CONTROLE_INTERNE')
+      : this.typeControleFromStatut();
+
     this.controleForm.reset({ typeControle: defaultType, controleurId: '' });
     this.controleurs.set([]);
     this.showControleDialog.set(true);
@@ -846,7 +862,7 @@ export class PlanDetailComponent implements OnInit {
       // L'utilisateur connecté EST contrôleur → on l'assigne directement, pas de liste
       this.controleForm.patchValue({ controleurId: this.userId });
     } else {
-      // ADMIN ou autre → charger la liste et choisir
+      // ADMIN → charger toute la liste, le filtrage se fait via getFilteredControleurs()
       this.loadingControleurs.set(true);
       forkJoin({
         internes: this.userSvc.getByRole('CONTROLEUR_INTERNE'),
@@ -860,6 +876,15 @@ export class PlanDetailComponent implements OnInit {
       });
     }
   }
+
+  /** Filtre la liste des contrôleurs selon le typeControle sélectionné */
+  getFilteredControleurs(): UtilisateurDto[] {
+    const type = this.controleForm.value.typeControle;
+    const list = this.controleurs();
+    if (type === 'CONTROLE_INTERNE') return list.filter(u => u.role === 'CONTROLEUR_INTERNE');
+    if (type === 'CONTROLE_EXTERNE') return list.filter(u => u.role === 'CONTROLEUR_EXTERNE');
+    return list; // CONTROLE_TECHNIQUE / VISA → tous
+  }
   closeControleDialog(): void { this.showControleDialog.set(false); }
 
   submitControle(): void {
@@ -869,9 +894,10 @@ export class PlanDetailComponent implements OnInit {
     const p = this.plan()!;
     const payload: CreateControlePayload = {
       planId: p.id,
-      versionId: p.derniereVersion!.idVersion,
-      typeControle: f.typeControle as 'INTERNE' | 'EXTERNE',
+      versionId: p.derniereVersion?.idVersion,
+      typeControle: f.typeControle as any,
       controleurId: f.controleurId,
+      projeteurId: p.projeteurId,
     };
     this.controleSvc.create(payload).subscribe({
       next: c => {
@@ -884,13 +910,12 @@ export class PlanDetailComponent implements OnInit {
     });
   }
 
-  decide(c: Controle, decision: 'BPE' | 'BAO' | 'FAVORABLE' | 'A_MODIFIER' | 'DEFAVORABLE'): void {
-    // Les décisions nécessitant une remarque obligatoire
+  decide(c: Controle, decision: 'VSO' | 'VAC' | 'VAO'): void {
     let remarque: string | undefined;
-    if (decision === 'A_MODIFIER' || decision === 'DEFAVORABLE') {
-      remarque = prompt('Remarque obligatoire (corrections à apporter) :') ?? undefined;
+    if (decision === 'VAO') {
+      remarque = prompt('Remarque obligatoire (observations à corriger) :') ?? undefined;
       if (!remarque?.trim()) {
-        this.snack.open('La remarque est obligatoire pour ce type de décision', 'Fermer', { duration: 4000 });
+        this.snack.open('La remarque est obligatoire pour VAO', 'Fermer', { duration: 4000 });
         return;
       }
     }
@@ -898,22 +923,10 @@ export class PlanDetailComponent implements OnInit {
     this.controleSvc.applyDecision(c.id, payload).subscribe({
       next: updated => {
         this.controles.update(list => list.map(x => x.id === c.id ? updated : x));
-        this.snack.open('Décision enregistrée', 'OK', { duration: 3000 });
-        // Reload plan to get updated status
+        this.snack.open(`Avis ${decision} enregistré`, 'OK', { duration: 3000 });
         this.planSvc.getById(this.plan()!.id).subscribe(p => this.plan.set(p));
       },
       error: () => this.snack.open('Erreur', 'Fermer', { duration: 4000 })
-    });
-  }
-
-  applyVisa(): void {
-    if (!confirm('Apposer le visa sur ce plan ?')) return;
-    this.controleSvc.applyVisa(this.controles().at(-1)?.id ?? '', {}).subscribe({
-      next: () => {
-        this.snack.open('Visa appliqué', 'OK', { duration: 3000 });
-        this.planSvc.getById(this.plan()!.id).subscribe(p => this.plan.set(p));
-      },
-      error: () => this.snack.open('Erreur lors du visa', 'Fermer', { duration: 4000 })
     });
   }
 }

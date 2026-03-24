@@ -1,26 +1,30 @@
-export type TypeControle = 'INTERNE' | 'EXTERNE';
+/**
+ * Types de contrôle BTP.
+ */
+export type TypeControle = 'CONTROLE_INTERNE' | 'CONTROLE_EXTERNE' | 'CONTROLE_TECHNIQUE' | 'VISA';
 
 /**
- * Décisions du contrôle BTP (CLAUDE-METIER.md §3 & §5).
+ * Avis du contrôleur (s'applique à tous les types de contrôle).
+ * VSO : Visa Sans Observation — approuvé
+ * VAC : Visa Avec Commentaire — approuvé avec commentaires mineurs
+ * VAO : Visa Avec Observation — corrections majeures requises
  *
- * Contrôle INTERNE : BPE | BAO | A_MODIFIER
- * Contrôle EXTERNE : FAVORABLE | DEFAVORABLE
+ * Règle clé : typeControle=VISA + VSO/VAC → plan.etat = VISE_BPE
  */
-export type Decision =
-  | 'EN_ATTENTE'
-  | 'BPE'          // Bon Pour Exécution (interne OK)
-  | 'BAO'          // Bon Avec Observations (interne OK avec remarques)
-  | 'A_MODIFIER'   // Rejeté par l'interne — corrections majeures
-  | 'FAVORABLE'    // Contrôle externe OK
-  | 'DEFAVORABLE'; // Contrôle externe refusé
+export type Decision = 'EN_ATTENTE' | 'VSO' | 'VAC' | 'VAO';
+
+export const TYPE_CONTROLE_META: Record<TypeControle, { label: string; color: string; bg: string; icon: string }> = {
+  CONTROLE_INTERNE:   { label: 'Contrôle interne',   color: '#B45309', bg: '#FFFBEB', icon: 'manage_search' },
+  CONTROLE_EXTERNE:   { label: 'Contrôle externe',   color: '#7C3AED', bg: '#F5F3FF', icon: 'verified_user' },
+  CONTROLE_TECHNIQUE: { label: 'Contrôle technique', color: '#0E7490', bg: '#ECFEFF', icon: 'engineering' },
+  VISA:               { label: 'Visa',               color: '#065F46', bg: '#D1FAE5', icon: 'approval' },
+};
 
 export const DECISION_META: Record<Decision, { label: string; color: string; icon: string; bg: string }> = {
-  EN_ATTENTE:  { label: 'En attente',          color: '#B45309', icon: 'hourglass_empty', bg: '#FFFBEB' },
-  BPE:         { label: 'Bon Pour Exécution',  color: '#15803D', icon: 'check_circle',    bg: '#F0FDF4' },
-  BAO:         { label: 'Bon Avec Observations',color: '#0E7490', icon: 'task_alt',        bg: '#ECFEFF' },
-  A_MODIFIER:  { label: 'À modifier',          color: '#B91C1C', icon: 'edit',            bg: '#FEF2F2' },
-  FAVORABLE:   { label: 'Favorable',           color: '#15803D', icon: 'verified',        bg: '#F0FDF4' },
-  DEFAVORABLE: { label: 'Défavorable',         color: '#B91C1C', icon: 'cancel',          bg: '#FEF2F2' },
+  EN_ATTENTE: { label: 'En attente',              color: '#B45309', icon: 'hourglass_empty', bg: '#FFFBEB' },
+  VSO:        { label: 'VSO — Sans observation', color: '#15803D', icon: 'check_circle',    bg: '#F0FDF4' },
+  VAC:        { label: 'VAC — Avec commentaire', color: '#0E7490', icon: 'task_alt',        bg: '#ECFEFF' },
+  VAO:        { label: 'VAO — Avec observation', color: '#B91C1C', icon: 'edit_note',       bg: '#FEF2F2' },
 };
 
 export interface Commentaire {
@@ -31,12 +35,16 @@ export interface Commentaire {
 
 export interface Controle {
   id: string;
+  reference?: string;
   planId: string;
-  versionId: string;
+  versionId?: string;
+  indiceExterneImpacte?: string;
   typeControle: TypeControle;
   controleurId: string;
+  projeteurId?: string;
   dateControle: string;
   decision: Decision;
   remarque?: string;
+  fichierPDF?: string;
   commentaires: Commentaire[];
 }

@@ -8,6 +8,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -22,6 +23,9 @@ public class AffaireDto {
     private LocalDate dateDebut;
     private LocalDate dateFin;
     private StatutAffaire statut;
+    private Double avancement;
+    private Map<String, Integer> pourcentagesParEtat;
+    private Map<String, Integer> coefficientsParType;
     private String creePar;
     private LocalDateTime dateCreation;
     private LocalDateTime dateDerniereModification;

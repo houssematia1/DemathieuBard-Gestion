@@ -2,12 +2,17 @@ package com.btp.plan.dto;
 
 import com.btp.plan.model.NiveauPlan;
 import com.btp.plan.model.TypePlan;
+import com.btp.plan.model.TypePrestation;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 public class CreatePlanRequest {
+
+    private String numeroPlan;         // Numéro d'affaire unique (optionnel, auto-généré si absent)
 
     @NotBlank(message = "L'affaireId est obligatoire")
     private String affaireId;
@@ -18,14 +23,21 @@ public class CreatePlanRequest {
     @NotNull(message = "Le type de plan est obligatoire")
     private TypePlan typePlan;
 
-    private NiveauPlan niveau;      // Zone/niveau du bâtiment (RDC, ETG1...)
+    private TypePrestation typePrestation; // PDB | PS (défaut PDB)
 
-    private String lot;             // Lot de l'affaire (ex: GC, CHARP)
+    private NiveauPlan niveau;
 
-    private String projeteurId;     // userId projeteur assigné
+    private String lot;
+
+    private String auteur;
+
+    private String projeteurId;
+
+    private Integer nombrePlanches;
+
+    private LocalDate dateEngagement;
 
     private String commentaire;
 
-    // Optionnel : URL si fichier pré-uploadé, sinon via POST /{id}/upload
-    private String fichierUrl;
+    private String fichierUrl;         // Fichier initial (optionnel)
 }

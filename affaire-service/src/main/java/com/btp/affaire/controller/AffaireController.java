@@ -1,6 +1,7 @@
 package com.btp.affaire.controller;
 
 import com.btp.affaire.dto.AffaireDto;
+import com.btp.affaire.dto.ConfigAffaireRequest;
 import com.btp.affaire.dto.CreateAffaireRequest;
 import com.btp.affaire.dto.UpdateAffaireRequest;
 import com.btp.affaire.model.HistoriqueEntry;
@@ -78,6 +79,15 @@ public class AffaireController {
     public ResponseEntity<Void> delete(@PathVariable String id, Authentication auth) {
         affaireService.delete(id, auth.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/config")
+    @Operation(summary = "Configurer les tableaux d'avancement (pourcentages par état, coefficients par type)")
+    public ResponseEntity<AffaireDto> updateConfig(
+            @PathVariable String id,
+            @RequestBody ConfigAffaireRequest request,
+            Authentication auth) {
+        return ResponseEntity.ok(affaireService.updateConfig(id, request, auth.getName()));
     }
 
     @GetMapping("/{id}/historique")

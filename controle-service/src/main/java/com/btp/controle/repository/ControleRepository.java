@@ -13,4 +13,5 @@ public interface ControleRepository extends MongoRepository<Controle, String> {
     List<Controle> findByPlanId(String planId);
     Page<Controle> findByControleurIdAndDecision(String controleurId, Decision decision, Pageable pageable);
     List<Controle> findByControleurIdAndDecision(String controleurId, Decision decision);
+    List<Controle> findByControleurIdOrderByDateControleDesc(String controleurId);
 }

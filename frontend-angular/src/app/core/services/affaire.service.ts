@@ -58,6 +58,14 @@ export class AffaireService {
     return this.http.delete<void>(`${this.base}/${id}`);
   }
 
+  updateConfig(id: string, payload: {
+    pourcentagesParEtat?: Record<string, number>;
+    coefficientsParType?: Record<string, number>;
+    avancement?: number;
+  }): Observable<Affaire> {
+    return this.http.put<Affaire>(`${this.base}/${id}/config`, payload);
+  }
+
   getHistorique(id: string): Observable<any[]> {
     return this.http.get<any[]>(`${this.base}/${id}/historique`);
   }

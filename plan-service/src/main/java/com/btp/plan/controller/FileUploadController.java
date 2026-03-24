@@ -49,10 +49,17 @@ public class FileUploadController {
             Files.createDirectories(dir);
         }
 
-        // Nom de fichier unique pour éviter les collisions
+        // Vérification extension acceptée
         String originalName = file.getOriginalFilename() != null
                 ? file.getOriginalFilename()
-                : "fichier.pdf";
+                : "fichier";
+        String ext = originalName.contains(".")
+                ? originalName.substring(originalName.lastIndexOf('.')).toLowerCase()
+                : "";
+        java.util.Set<String> ALLOWED = java.util.Set.of(".pdf", ".doc", ".docx", ".xls", ".xlsx", ".dwg");
+        if (!ext.isEmpty() && !ALLOWED.contains(ext)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Format non accepté. Formats autorisés : PDF, Word, Excel, DWG"));
+        }
         String safeName = originalName.replaceAll("[^a-zA-Z0-9._-]", "_");
         String filename = UUID.randomUUID() + "_" + safeName;
 
@@ -78,9 +85,15 @@ public class FileUploadController {
             return ResponseEntity.notFound().build();
         }
 
-        String contentType = filename.toLowerCase().endsWith(".pdf")
-                ? "application/pdf"
-                : "application/octet-stream";
+        String lower = filename.toLowerCase();
+        String contentType;
+        if (lower.endsWith(".pdf"))  contentType = "application/pdf";
+        else if (lower.endsWith(".doc"))  contentType = "application/msword";
+        else if (lower.endsWith(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        else if (lower.endsWith(".xls"))  contentType = "application/vnd.ms-excel";
+        else if (lower.endsWith(".xlsx")) contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        else if (lower.endsWith(".dwg"))  contentType = "application/acad";
+        else contentType = "application/octet-stream";
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")

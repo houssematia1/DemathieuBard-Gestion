@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 @Data
 public class UpdateAffaireRequest {
@@ -18,4 +19,7 @@ public class UpdateAffaireRequest {
     private LocalDate dateDebut;
     private LocalDate dateFin;
     private StatutAffaire statut;
+    private Double avancement;
+    private Map<String, Integer> pourcentagesParEtat;
+    private Map<String, Integer> coefficientsParType;
 }

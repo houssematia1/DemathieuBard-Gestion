@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String EXCHANGE      = "btp.events";
-    public static final String QUEUE         = "btp.notifications";
+    public static final String EXCHANGE = "btp.events";
+    public static final String QUEUE    = "btp.notifications";
 
     @Bean
     public TopicExchange btpExchange() {
@@ -23,29 +23,22 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(QUEUE).build();
     }
 
+    // Capturer tous les événements plan.* (modifié, émis, soumis, fichier ajouté, état changé...)
     @Bean
-    public Binding bindingPlanSoumis(Queue notificationQueue, TopicExchange btpExchange) {
-        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("plan.soumis");
+    public Binding bindingPlanAll(Queue notificationQueue, TopicExchange btpExchange) {
+        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("plan.#");
     }
 
+    // Capturer tous les événements controle.* (ajouté, valide, modification...)
     @Bean
-    public Binding bindingControleRefuse(Queue notificationQueue, TopicExchange btpExchange) {
-        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("controle.refuse");
+    public Binding bindingControleAll(Queue notificationQueue, TopicExchange btpExchange) {
+        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("controle.#");
     }
 
+    // Capturer tous les événements visa.*
     @Bean
-    public Binding bindingControleValide(Queue notificationQueue, TopicExchange btpExchange) {
-        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("controle.valide");
-    }
-
-    @Bean
-    public Binding bindingControleModification(Queue notificationQueue, TopicExchange btpExchange) {
-        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("controle.modification");
-    }
-
-    @Bean
-    public Binding bindingVisaApplique(Queue notificationQueue, TopicExchange btpExchange) {
-        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("visa.applique");
+    public Binding bindingVisaAll(Queue notificationQueue, TopicExchange btpExchange) {
+        return BindingBuilder.bind(notificationQueue).to(btpExchange).with("visa.#");
     }
 
     @Bean

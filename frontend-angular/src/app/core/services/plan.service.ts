@@ -2,17 +2,33 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Plan, Version } from '../models/plan.model';
+import { Plan, PlanArchive, TypePrestation, Version } from '../models/plan.model';
 
 export interface CreatePlanPayload {
+  numeroPlan?: string;
   affaireId: string;
   nom: string;
   typePlan: string;
+  typePrestation?: TypePrestation;
   niveau?: string;
   lot?: string;
+  auteur?: string;
   projeteurId?: string;
+  nombrePlanches?: number;
+  dateEngagement?: string;
   commentaire?: string;
   fichierUrl?: string;
+}
+
+export interface UpdatePlanPayload {
+  nom?: string;
+  typePrestation?: TypePrestation;
+  niveau?: string;
+  lot?: string;
+  auteur?: string;
+  projeteurId?: string;
+  nombrePlanches?: number;
+  dateEngagement?: string;
 }
 
 export interface AddVersionPayload {
@@ -35,7 +51,7 @@ export class PlanService {
   search(typePlan?: string, statut?: string): Observable<Plan[]> {
     let params = new HttpParams();
     if (typePlan) params = params.set('typePlan', typePlan);
-    if (statut) params = params.set('statut', statut);
+    if (statut)   params = params.set('statut', statut);
     return this.http.get<any>(this.base, { params }).pipe(
       map(resp => Array.isArray(resp) ? resp : (resp?.content ?? []))
     );
@@ -49,7 +65,7 @@ export class PlanService {
     return this.http.post<Plan>(this.base, payload);
   }
 
-  update(id: string, payload: Partial<CreatePlanPayload>): Observable<Plan> {
+  update(id: string, payload: UpdatePlanPayload): Observable<Plan> {
     return this.http.put<Plan>(`${this.base}/${id}`, payload);
   }
 
@@ -65,21 +81,26 @@ export class PlanService {
     return this.http.get<Version[]>(`${this.base}/${id}/versions`);
   }
 
-  /** Émet officiellement un plan (BROUILLON → EMIS, assigne l'indice). */
+  addFichier(id: string, fichierUrl: string): Observable<Plan> {
+    return this.http.post<Plan>(`${this.base}/${id}/fichiers`, { fichierUrl });
+  }
+
   emettre(id: string): Observable<Plan> {
     return this.http.post<Plan>(`${this.base}/${id}/emettre`, {});
   }
 
-  /** Soumet un plan EMIS au contrôle interne (EMIS → EN_CONTROLE_INTERNE). */
   soumettre(id: string): Observable<Plan> {
     return this.http.post<Plan>(`${this.base}/${id}/soumettre`, {});
   }
 
-  getHistorique(id: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/${id}/historique`);
+  getArchives(id: string): Observable<PlanArchive[]> {
+    return this.http.get<PlanArchive[]>(`${this.base}/${id}/archives`);
   }
 
-  /** Upload un fichier PDF, retourne l'URL relative du fichier stocké. */
+  getHistorique(id: string): Observable<any> {
+    return this.http.get<any>(`${this.base}/${id}/historique`);
+  }
+
   uploadFile(file: File): Observable<{ fichierUrl: string }> {
     const formData = new FormData();
     formData.append('file', file);

@@ -1,6 +1,7 @@
 package com.btp.affaire.service;
 
 import com.btp.affaire.dto.AffaireDto;
+import com.btp.affaire.dto.ConfigAffaireRequest;
 import com.btp.affaire.dto.CreateAffaireRequest;
 import com.btp.affaire.dto.UpdateAffaireRequest;
 import com.btp.affaire.exception.ResourceNotFoundException;
@@ -119,6 +120,34 @@ public class AffaireService {
         return getOrThrow(id).getHistorique();
     }
 
+    /**
+     * Met à jour les tableaux de configuration d'une affaire
+     * (pourcentagesParEtat, coefficientsParType, avancement).
+     */
+    public AffaireDto updateConfig(String id, ConfigAffaireRequest request, String userId) {
+        Affaire affaire = getOrThrow(id);
+        if (affaire.getStatut() == StatutAffaire.ANNULEE) {
+            throw new IllegalStateException("Une affaire annulée ne peut plus être modifiée");
+        }
+        if (request.getPourcentagesParEtat() != null) {
+            affaire.setPourcentagesParEtat(request.getPourcentagesParEtat());
+        }
+        if (request.getCoefficientsParType() != null) {
+            affaire.setCoefficientsParType(request.getCoefficientsParType());
+        }
+        if (request.getAvancement() != null) {
+            affaire.setAvancement(request.getAvancement());
+        }
+        affaire.setDateDerniereModification(LocalDateTime.now());
+        affaire.getHistorique().add(HistoriqueEntry.builder()
+                .action("CONFIG_AVANCEMENT")
+                .date(LocalDateTime.now())
+                .utilisateurId(userId)
+                .details("Configuration avancement mise à jour")
+                .build());
+        return toDto(affaireRepository.save(affaire));
+    }
+
     /* ── Private helpers ─────────────────────────────────────── */
 
     private Affaire getOrThrow(String id) {
@@ -144,6 +173,9 @@ public class AffaireService {
                 .dateDebut(a.getDateDebut())
                 .dateFin(a.getDateFin())
                 .statut(a.getStatut())
+                .avancement(a.getAvancement())
+                .pourcentagesParEtat(a.getPourcentagesParEtat())
+                .coefficientsParType(a.getCoefficientsParType())
                 .creePar(a.getCreePar())
                 .dateCreation(a.getDateCreation())
                 .dateDerniereModification(a.getDateDerniereModification())

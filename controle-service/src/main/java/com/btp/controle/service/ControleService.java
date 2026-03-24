@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @RequiredArgsConstructor
@@ -33,19 +34,49 @@ public class ControleService {
     @Value("${plan-service.url:http://PLAN-SERVICE}")
     private String planServiceUrl;
 
+    // Compteur pour générer des références uniques
+    private final AtomicLong refCounter = new AtomicLong(0);
+
     public ControleDto create(CreateControleRequest request, String userId) {
         String controleurId = request.getControleurId() != null ? request.getControleurId() : userId;
+        String reference = request.getReference() != null && !request.getReference().isBlank()
+                ? request.getReference()
+                : generateReference();
 
         Controle controle = Controle.builder()
+                .reference(reference)
                 .planId(request.getPlanId())
                 .versionId(request.getVersionId())
+                .indiceExterneImpacte(request.getIndiceExterneImpacte())
                 .typeControle(request.getTypeControle())
                 .controleurId(controleurId)
+                .projeteurId(request.getProjeteurId())
                 .decision(Decision.EN_ATTENTE)
                 .build();
 
         Controle saved = controleRepository.save(controle);
-        log.info("Contrôle créé : {} pour le plan {}", saved.getId(), request.getPlanId());
+
+        // Mettre à jour le statut du plan pour indiquer qu'il est en cours de contrôle
+        String statutControle = mapTypeControleToStatutPlan(request.getTypeControle());
+        if (statutControle != null) {
+            updatePlanStatut(saved.getPlanId(), statutControle);
+        }
+
+        // Notifier le projeteur qu'un contrôle a été ouvert sur son plan
+        if (request.getProjeteurId() != null && !request.getProjeteurId().isBlank()) {
+            BtpEvent event = BtpEvent.builder()
+                    .routingKey("controle.ajoute")
+                    .entiteId(saved.getPlanId())
+                    .entiteType("PLAN")
+                    .userId(userId)
+                    .destinataireId(request.getProjeteurId())
+                    .message("Un contrôle (" + request.getTypeControle() + ") a été ouvert sur votre plan")
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, "controle.ajoute", event);
+        }
+
+        log.info("Contrôle créé : {} ({}) pour le plan {}", saved.getId(), request.getTypeControle(), request.getPlanId());
         return toDto(saved);
     }
 
@@ -62,59 +93,59 @@ public class ControleService {
                 .stream().map(this::toDto).toList();
     }
 
+    public List<ControleDto> findMes(String controleurId) {
+        return controleRepository.findByControleurIdOrderByDateControleDesc(controleurId)
+                .stream().map(this::toDto).toList();
+    }
+
     /**
-     * Applique une décision de contrôle selon la logique métier BTP (CLAUDE-METIER.md §5).
+     * Applique un avis (VSO / VAC / VAO) au contrôle.
      *
-     * Contrôle INTERNE : BPE | BAO | A_MODIFIER
-     * Contrôle EXTERNE : FAVORABLE | DEFAVORABLE
-     *
-     * Règles :
-     * - Un contrôle déjà décidé ne peut pas être redécidé
-     * - La remarque est obligatoire pour A_MODIFIER et DEFAVORABLE
-     * - La décision met à jour le statut du plan via Plan Service
+     * Règles métier :
+     * - Un contrôle déjà décidé est définitif
+     * - VAO : remarque obligatoire
+     * - VISA + VSO/VAC → plan.etat = VISE_BPE, plan.statut = VISE
+     * - VISA + VAO → plan.statut = BROUILLON (corrections nécessaires)
+     * - Autres types + VSO/VAC → plan.statut = EMIS (prêt pour la prochaine étape)
+     * - Autres types + VAO → plan.statut = BROUILLON
      */
     public ControleDto applyDecision(String id, DecisionRequest request, String userId) {
         Controle controle = getOrThrow(id);
 
-        // Règle : un contrôle déjà décidé est définitif
         if (controle.getDecision() != Decision.EN_ATTENTE) {
-            throw new IllegalStateException("Ce contrôle a déjà une décision définitive");
+            throw new IllegalStateException("Ce contrôle a déjà un avis définitif");
         }
 
-        // Règle : décisions valides selon le type de contrôle
-        validateDecisionPourType(controle.getTypeControle(), request.getDecision());
-
-        // Règle : remarque obligatoire en cas de rejet ou modification
-        if ((request.getDecision() == Decision.A_MODIFIER || request.getDecision() == Decision.DEFAVORABLE)
+        // VAO : remarque obligatoire
+        if (request.getDecision() == Decision.VAO
                 && (request.getRemarque() == null || request.getRemarque().isBlank())) {
-            throw new IllegalArgumentException(
-                    "La remarque est obligatoire en cas de rejet ou de demande de modification");
+            throw new IllegalArgumentException("La remarque est obligatoire pour un avis VAO");
         }
 
         controle.setDecision(request.getDecision());
         controle.setRemarque(request.getRemarque());
+        if (request.getFichierPDF() != null) {
+            controle.setFichierPDF(request.getFichierPDF());
+        }
         Controle saved = controleRepository.save(controle);
 
-        // Mettre à jour le statut du plan via Plan Service
-        String nouveauStatutPlan = mapDecisionVerStatutPlan(request.getDecision());
-        if (nouveauStatutPlan != null) {
-            updatePlanStatut(saved.getPlanId(), nouveauStatutPlan);
-        }
+        // Mettre à jour le statut/état du plan
+        applyPlanChanges(saved);
 
-        // Déterminer la routing key RabbitMQ selon la décision
+        // Publier l'événement RabbitMQ
         String routingKey = getRoutingKey(request.getDecision());
-        if (routingKey != null) {
-            BtpEvent event = BtpEvent.builder()
-                    .routingKey(routingKey)
-                    .entiteId(saved.getPlanId())
-                    .entiteType("PLAN")
-                    .userId(userId)
-                    .message(buildDecisionMessage(request.getDecision(), saved.getPlanId()))
-                    .timestamp(LocalDateTime.now())
-                    .build();
-            rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, routingKey, event);
-            log.info("Événement {} publié pour le contrôle {}", routingKey, id);
-        }
+        String message = buildAvisMessage(request.getDecision(), saved.getTypeControle(), saved.getPlanId());
+        BtpEvent event = BtpEvent.builder()
+                .routingKey(routingKey)
+                .entiteId(saved.getPlanId())
+                .entiteType("PLAN")
+                .userId(userId)
+                .destinataireId(saved.getProjeteurId())
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .build();
+        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, routingKey, event);
+        log.info("Avis {} publié pour le contrôle {} (type: {})", request.getDecision(), id, saved.getTypeControle());
 
         return toDto(saved);
     }
@@ -129,107 +160,60 @@ public class ControleService {
         return toDto(controleRepository.save(controle));
     }
 
-    /**
-     * Appose le visa final sur un plan.
-     *
-     * Conditions (CLAUDE-METIER.md §5 Étape 6) :
-     * - Le contrôle interne doit être BPE ou BAO
-     * - Si un contrôle externe existe, il doit être FAVORABLE
-     */
-    public ControleDto applyVisa(String id, String userId) {
-        Controle controle = getOrThrow(id);
-        List<Controle> tousCont = controleRepository.findByPlanId(controle.getPlanId());
-
-        // Vérifier contrôle interne validé
-        boolean interneOk = tousCont.stream()
-                .filter(c -> c.getTypeControle() == TypeControle.INTERNE)
-                .anyMatch(c -> c.getDecision() == Decision.BPE || c.getDecision() == Decision.BAO);
-
-        if (!interneOk) {
-            throw new IllegalStateException(
-                    "Le contrôle interne doit être BPE ou BAO avant d'appliquer le visa");
-        }
-
-        // Vérifier contrôle externe si présent
-        boolean hasExterne = tousCont.stream()
-                .anyMatch(c -> c.getTypeControle() == TypeControle.EXTERNE);
-        if (hasExterne) {
-            boolean externeOk = tousCont.stream()
-                    .filter(c -> c.getTypeControle() == TypeControle.EXTERNE)
-                    .anyMatch(c -> c.getDecision() == Decision.FAVORABLE);
-            if (!externeOk) {
-                throw new IllegalStateException(
-                        "Le contrôle externe doit être FAVORABLE avant d'appliquer le visa");
-            }
-        }
-
-        // Mettre à jour le plan vers VISE
-        updatePlanStatut(controle.getPlanId(), "VISE");
-
-        BtpEvent event = BtpEvent.builder()
-                .routingKey("visa.applique")
-                .entiteId(controle.getPlanId())
-                .entiteType("PLAN")
-                .userId(userId)
-                .message("Visa appliqué sur le plan " + controle.getPlanId())
-                .timestamp(LocalDateTime.now())
-                .build();
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, "visa.applique", event);
-        log.info("Visa appliqué pour le contrôle {} — plan {}", id, controle.getPlanId());
-
-        return toDto(controle);
-    }
-
     /* ── Helpers métier ──────────────────────────────────────────────── */
 
-    /** Vérifie que la décision est cohérente avec le type de contrôle. */
-    private void validateDecisionPourType(TypeControle type, Decision decision) {
-        boolean valide = switch (type) {
-            case INTERNE -> decision == Decision.BPE
-                    || decision == Decision.BAO
-                    || decision == Decision.A_MODIFIER;
-            case EXTERNE -> decision == Decision.FAVORABLE
-                    || decision == Decision.DEFAVORABLE;
-        };
-        if (!valide) {
-            throw new IllegalArgumentException(
-                    "Décision " + decision + " invalide pour un contrôle " + type
-                    + ". Attendu: " + (type == TypeControle.INTERNE
-                            ? "BPE | BAO | A_MODIFIER"
-                            : "FAVORABLE | DEFAVORABLE"));
+    /** Met à jour le plan selon l'avis et le type de contrôle. */
+    private void applyPlanChanges(Controle controle) {
+        boolean isVisa = controle.getTypeControle() == TypeControle.VISA;
+        Decision avis = controle.getDecision();
+
+        if (isVisa && (avis == Decision.VSO || avis == Decision.VAC)) {
+            // Visa accordé → plan visé BPE
+            updatePlanStatut(controle.getPlanId(), "VISE");
+            updatePlanEtat(controle.getPlanId(), "VISE_BPE");
+        } else if (avis == Decision.VAO) {
+            // Observation → retour au projeteur
+            updatePlanStatut(controle.getPlanId(), "BROUILLON");
+        } else if (avis == Decision.VSO || avis == Decision.VAC) {
+            // Contrôle approuvé (non-visa) → avancer vers l'étape suivante
+            String nextStatut = switch (controle.getTypeControle()) {
+                case CONTROLE_INTERNE   -> "EN_CONTROLE_EXTERNE";
+                case CONTROLE_EXTERNE   -> "EN_CONTROLE_TECHNIQUE";
+                case CONTROLE_TECHNIQUE -> "VISE";
+                default                 -> "EMIS";
+            };
+            updatePlanStatut(controle.getPlanId(), nextStatut);
+            if (controle.getTypeControle() == TypeControle.CONTROLE_TECHNIQUE) {
+                updatePlanEtat(controle.getPlanId(), "VISE_BPE");
+            }
         }
     }
 
-    /** Mappe une décision au nouveau statut du plan. */
-    private String mapDecisionVerStatutPlan(Decision decision) {
-        return switch (decision) {
-            case BPE         -> "BON_POUR_EXECUTION";
-            case BAO         -> "BON_AVEC_OBSERVATIONS";
-            case A_MODIFIER  -> "A_MODIFIER";
-            case FAVORABLE   -> "FAVORABLE";
-            case DEFAVORABLE -> "DEFAVORABLE";
-            default          -> null;
-        };
-    }
-
-    /** Routing key RabbitMQ selon la décision. */
+    /** Routing key RabbitMQ selon l'avis. */
     private String getRoutingKey(Decision decision) {
         return switch (decision) {
-            case BPE, BAO, FAVORABLE -> "controle.valide";
-            case A_MODIFIER          -> "controle.modification";
-            case DEFAVORABLE         -> "controle.refuse";
-            default                  -> null;
+            case VSO, VAC -> "controle.valide";
+            case VAO      -> "controle.modification";
+            default       -> "controle.info";
         };
     }
 
-    private String buildDecisionMessage(Decision decision, String planId) {
+    private String buildAvisMessage(Decision decision, TypeControle type, String planId) {
         return switch (decision) {
-            case BPE        -> "Contrôle interne BPE — plan " + planId + " prêt pour l'étape suivante";
-            case BAO        -> "Contrôle interne BAO — plan " + planId + " accepté avec observations";
-            case A_MODIFIER -> "Contrôle interne — plan " + planId + " à modifier (corrections majeures)";
-            case FAVORABLE  -> "Contrôle externe FAVORABLE — plan " + planId + " prêt pour le visa";
-            case DEFAVORABLE-> "Contrôle externe DÉFAVORABLE — plan " + planId + " à corriger";
-            default         -> "Décision " + decision + " pour le plan " + planId;
+            case VSO -> "Contrôle " + type + " — VSO (Visa Sans Observation) pour le plan " + planId;
+            case VAC -> "Contrôle " + type + " — VAC (Visa Avec Commentaire) pour le plan " + planId;
+            case VAO -> "Contrôle " + type + " — VAO (Visa Avec Observation) — corrections requises pour le plan " + planId;
+            default  -> "Avis " + decision + " pour le plan " + planId;
+        };
+    }
+
+    /** Mappe le type de contrôle au statut plan correspondant (ouverture du contrôle). */
+    private String mapTypeControleToStatutPlan(TypeControle type) {
+        return switch (type) {
+            case CONTROLE_INTERNE    -> "EN_CONTROLE_INTERNE";
+            case CONTROLE_EXTERNE    -> "EN_CONTROLE_EXTERNE";
+            case CONTROLE_TECHNIQUE  -> "EN_CONTROLE_TECHNIQUE";
+            case VISA                -> null; // Le visa ne change pas le statut à l'ouverture
         };
     }
 
@@ -240,12 +224,28 @@ public class ControleService {
             body.put("statut", statut);
             String url = planServiceUrl + "/api/plans/" + planId + "/statut";
             ResponseEntity<Void> response = restTemplate.postForEntity(url, body, Void.class);
-            log.info("Statut du plan {} mis à jour → {} (HTTP {})",
-                    planId, statut, response.getStatusCode());
+            log.info("Statut du plan {} → {} (HTTP {})", planId, statut, response.getStatusCode());
         } catch (Exception e) {
-            log.error("Erreur lors de la mise à jour du statut du plan {} → {}: {}",
-                    planId, statut, e.getMessage());
+            log.error("Erreur mise à jour statut plan {} → {}: {}", planId, statut, e.getMessage());
         }
+    }
+
+    /** Appelle Plan Service pour mettre à jour l'état du plan (NON_COMMENCE / EN_COURS / VISE_BPE). */
+    private void updatePlanEtat(String planId, String etat) {
+        try {
+            Map<String, String> body = new HashMap<>();
+            body.put("etat", etat);
+            String url = planServiceUrl + "/api/plans/" + planId + "/etat";
+            ResponseEntity<Void> response = restTemplate.postForEntity(url, body, Void.class);
+            log.info("État du plan {} → {} (HTTP {})", planId, etat, response.getStatusCode());
+        } catch (Exception e) {
+            log.error("Erreur mise à jour état plan {} → {}: {}", planId, etat, e.getMessage());
+        }
+    }
+
+    private String generateReference() {
+        long count = controleRepository.count() + refCounter.incrementAndGet();
+        return String.format("CTRL-%04d", count);
     }
 
     /* ── Private helpers ─────────────────────────────────────────── */
@@ -258,13 +258,17 @@ public class ControleService {
     public ControleDto toDto(Controle c) {
         return ControleDto.builder()
                 .id(c.getId())
+                .reference(c.getReference())
                 .planId(c.getPlanId())
                 .versionId(c.getVersionId())
+                .indiceExterneImpacte(c.getIndiceExterneImpacte())
                 .typeControle(c.getTypeControle())
                 .controleurId(c.getControleurId())
+                .projeteurId(c.getProjeteurId())
                 .dateControle(c.getDateControle())
                 .decision(c.getDecision())
                 .remarque(c.getRemarque())
+                .fichierPDF(c.getFichierPDF())
                 .commentaires(c.getCommentaires())
                 .build();
     }
