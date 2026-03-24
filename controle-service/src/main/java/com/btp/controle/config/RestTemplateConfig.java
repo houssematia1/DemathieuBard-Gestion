@@ -8,6 +8,7 @@ import org.springframework.web.client.RestTemplate;
 /**
  * Configuration du RestTemplate load-balancé via Eureka.
  * Permet à controle-service d'appeler plan-service par son nom logique "PLAN-SERVICE".
+ * URL utilisée : http://PLAN-SERVICE/api/plans/{id}/statut
  */
 @Configuration
 public class RestTemplateConfig {
