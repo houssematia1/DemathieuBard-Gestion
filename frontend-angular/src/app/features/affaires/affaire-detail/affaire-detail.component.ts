@@ -84,48 +84,19 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
     <!-- ── Avancement ────────────────────────────────────────── -->
     <div class="av-section">
       <h2 class="section-title">Avancement</h2>
-      <div class="av-layout">
-        <!-- Barre de progression -->
-        <div class="av-progress-card">
-          <div class="av-progress-header">
-            <span class="av-progress-label">Avancement pondéré</span>
-            <span class="av-progress-pct">{{ calculAvancement() }}%</span>
-          </div>
-          <div class="av-progress-bar">
-            <div class="av-progress-fill"
-                 [style.width.%]="calculAvancement()"
-                 [style.background]="calculAvancement() >= 100 ? '#15803D' : calculAvancement() > 50 ? '#1D4ED8' : '#F59E0B'">
-            </div>
-          </div>
-          <div class="av-progress-sub">
-            {{ plans().length }} plan(s) · pondéré par type
+      <div class="av-progress-card">
+        <div class="av-progress-header">
+          <span class="av-progress-label">Avancement pondéré</span>
+          <span class="av-progress-pct">{{ calculAvancement() }}%</span>
+        </div>
+        <div class="av-progress-bar">
+          <div class="av-progress-fill"
+               [style.width.%]="calculAvancement()"
+               [style.background]="calculAvancement() >= 100 ? '#15803D' : calculAvancement() > 50 ? '#1D4ED8' : '#F59E0B'">
           </div>
         </div>
-
-        <!-- Tableaux de config -->
-        <div class="av-tables">
-          <div class="av-table-card">
-            <div class="av-table-title">% par état livrable</div>
-            <table class="av-table">
-              <thead><tr><th>État</th><th class="tc">%</th></tr></thead>
-              <tbody>
-                @for (e of objectEntries(a.pourcentagesParEtat); track e[0]) {
-                  <tr><td>{{ etatLabel(e[0]) }}</td><td class="tc">{{ e[1] }}%</td></tr>
-                }
-              </tbody>
-            </table>
-          </div>
-          <div class="av-table-card">
-            <div class="av-table-title">Coefficient par type</div>
-            <table class="av-table">
-              <thead><tr><th>Type</th><th class="tc">Coef.</th></tr></thead>
-              <tbody>
-                @for (e of objectEntries(a.coefficientsParType); track e[0]) {
-                  <tr><td>{{ e[0] }}</td><td class="tc">{{ e[1] }}</td></tr>
-                }
-              </tbody>
-            </table>
-          </div>
+        <div class="av-progress-sub">
+          {{ plans().length }} plan(s) · pondéré par type
         </div>
       </div>
     </div>

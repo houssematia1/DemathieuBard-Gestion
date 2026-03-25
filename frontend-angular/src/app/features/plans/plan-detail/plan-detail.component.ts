@@ -1,6 +1,6 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -11,7 +11,7 @@ import { forkJoin } from 'rxjs';
 import { PlanService } from '../../../core/services/plan.service';
 import { ControleService, CreateControlePayload, DecisionPayload } from '../../../core/services/controle.service';
 import { UserService } from '../../../core/services/user.service';
-import { Plan, STATUT_PLAN, ETAT_PLAN, TYPE_PLAN, Version, getStatutPlan } from '../../../core/models/plan.model';
+import { Plan, PlanArchive, STATUT_PLAN, ETAT_PLAN, TYPE_PLAN, Version, getStatutPlan } from '../../../core/models/plan.model';
 import { Controle, DECISION_META, TYPE_CONTROLE_META } from '../../../core/models/controle.model';
 import { UtilisateurDto } from '../../../core/models/user.model';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -119,6 +119,14 @@ import { AuthService } from '../../../core/auth/auth.service';
           <mat-icon>fact_check</mat-icon> Créer un contrôle
         </button>
       }
+      <div class="actions-spacer"></div>
+      @if (canDelete(p)) {
+        <button class="btn-action danger" (click)="deletePlan()" [disabled]="deletingPlan()">
+          @if (deletingPlan()) { <mat-spinner diameter="14" /> }
+          @else { <mat-icon>delete</mat-icon> }
+          Supprimer
+        </button>
+      }
     </div>
 
     <!-- ── Versions Timeline ────────────────────────────────────── -->
@@ -219,6 +227,65 @@ import { AuthService } from '../../../core/auth/auth.service';
         </table>
       </div>
     }
+
+    <!-- ── Historique des archives ───────────────────────────────── -->
+    <div class="archives-section">
+      <button class="archives-toggle" (click)="toggleArchives()">
+        <mat-icon>{{ showArchives() ? 'expand_less' : 'history' }}</mat-icon>
+        Historique des archives
+        @if (archives().length) {
+          <span class="archives-count">{{ archives().length }}</span>
+        }
+        @if (!showArchives()) {
+          <mat-icon class="toggle-chevron">expand_more</mat-icon>
+        } @else {
+          <mat-icon class="toggle-chevron">expand_less</mat-icon>
+        }
+      </button>
+
+      @if (showArchives()) {
+        @if (loadingArchives()) {
+          <div class="archives-loading"><mat-spinner diameter="24" /></div>
+        } @else if (!archives().length) {
+          <p class="archives-empty">Aucune archive disponible.</p>
+        } @else {
+          <div class="archives-list">
+            @for (a of archives(); track a.id) {
+              <div class="archive-card">
+                <div class="archive-header">
+                  <div class="archive-meta">
+                    <span class="archive-date">
+                      <mat-icon>schedule</mat-icon>
+                      {{ a.dateArchive | date:'dd/MM/yyyy HH:mm' }}
+                    </span>
+                    <span class="archive-by">par {{ a.modifiePar }}</span>
+                  </div>
+                  <div class="archive-badges">
+                    @if (a.indiceInterne) {
+                      <span class="arc-indice">Indice {{ a.indiceInterne }}</span>
+                    }
+                    @if (a.statutStr) {
+                      <span class="arc-statut">{{ a.statutStr }}</span>
+                    }
+                  </div>
+                </div>
+                <div class="archive-body">
+                  <span class="arc-nom">{{ a.nom }}</span>
+                  @if (a.versions?.length) {
+                    <span class="arc-versions">{{ a.versions.length }} version(s)</span>
+                  }
+                  @if (a.fichiers?.length) {
+                    <span class="arc-fichiers">
+                      <mat-icon>attach_file</mat-icon>{{ a.fichiers.length }} fichier(s)
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+    </div>
 
   }
   } <!-- end @else -->
@@ -635,10 +702,76 @@ import { AuthService } from '../../../core/auth/auth.service';
       &:hover { background: #FEE2E2; }
       mat-icon { font-size: 1rem; width: 16px; height: 16px; }
     }
+
+    /* Danger button */
+    .actions-spacer { flex: 1; }
+    .btn-action.danger {
+      color: #B91C1C; border-color: #FECACA;
+      &:hover { background: #FEE2E2; }
+      &:disabled { opacity: .5; cursor: not-allowed; }
+      mat-icon { font-size: 1rem; width: 16px; height: 16px; }
+    }
+
+    /* Archives */
+    .archives-section { margin-top: 32px; border-top: 1px solid var(--db-border); padding-top: 16px; }
+    .archives-toggle {
+      display: flex; align-items: center; gap: 8px;
+      background: none; border: none; cursor: pointer;
+      font-size: .9rem; font-weight: 600; color: var(--db-text-secondary);
+      padding: 6px 0; border-radius: 4px;
+      &:hover { color: var(--db-text); }
+      mat-icon { font-size: 1.1rem; width: 18px; height: 18px; }
+      .toggle-chevron { margin-left: auto; }
+    }
+    .archives-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--db-navy); color: #fff;
+      font-size: .72rem; font-weight: 700;
+      padding: 1px 7px; border-radius: 10px;
+    }
+    .archives-loading { display: flex; justify-content: center; padding: 24px; }
+    .archives-empty { color: var(--db-text-secondary); font-size: .85rem; padding: 12px 0; }
+    .archives-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .archive-card {
+      border: 1px solid var(--db-border); border-radius: 8px;
+      padding: 12px 16px; background: #FAFBFC;
+    }
+    .archive-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 6px; flex-wrap: wrap; gap: 6px;
+    }
+    .archive-meta { display: flex; align-items: center; gap: 10px; }
+    .archive-date {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: .78rem; color: var(--db-text-secondary);
+      mat-icon { font-size: .85rem; width: 14px; height: 14px; }
+    }
+    .archive-by { font-size: .75rem; color: var(--db-text-secondary); }
+    .archive-badges { display: flex; gap: 6px; }
+    .arc-indice {
+      font-size: .75rem; font-weight: 700;
+      background: var(--db-navy); color: #fff;
+      padding: 1px 8px; border-radius: 10px;
+    }
+    .arc-statut {
+      font-size: .75rem; font-weight: 600;
+      background: #F3F4F6; color: var(--db-text-secondary);
+      padding: 1px 8px; border-radius: 10px;
+    }
+    .archive-body {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .arc-nom { font-size: .85rem; font-weight: 500; color: var(--db-text); }
+    .arc-versions, .arc-fichiers {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: .75rem; color: var(--db-text-secondary);
+      mat-icon { font-size: .8rem; width: 12px; height: 12px; }
+    }
   `]
 })
 export class PlanDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private planSvc = inject(PlanService);
   private controleSvc = inject(ControleService);
   private userSvc = inject(UserService);
@@ -649,12 +782,16 @@ export class PlanDetailComponent implements OnInit {
   plan = signal<Plan | null>(null);
   controles = signal<Controle[]>([]);
   controleurs = signal<UtilisateurDto[]>([]);
+  archives = signal<PlanArchive[]>([]);
   loading = signal(true);
   loadingControleurs = signal(false);
+  loadingArchives = signal(false);
   showVersionDialog = signal(false);
   showControleDialog = signal(false);
+  showArchives = signal(false);
   submitting = signal(false);
   submittingControle = signal(false);
+  deletingPlan = signal(false);
   selectedVersionFile = signal<File | null>(null);
 
   readonly STATUT_PLAN = STATUT_PLAN;
@@ -927,6 +1064,43 @@ export class PlanDetailComponent implements OnInit {
         this.planSvc.getById(this.plan()!.id).subscribe(p => this.plan.set(p));
       },
       error: () => this.snack.open('Erreur', 'Fermer', { duration: 4000 })
+    });
+  }
+
+  canDelete(p: Plan): boolean {
+    if (p.statut === 'VISE') return false;
+    return this.isAdmin() || p.creePar === this.userId;
+  }
+
+  deletePlan(): void {
+    const p = this.plan();
+    if (!p) return;
+    if (!confirm(`Supprimer le plan "${p.nom}" ?\nUne archive sera conservée automatiquement.`)) return;
+
+    this.deletingPlan.set(true);
+    this.planSvc.delete(p.id).subscribe({
+      next: () => {
+        this.snack.open('Plan supprimé (archivé)', 'OK', { duration: 3000 });
+        this.router.navigate(['/affaires', p.affaireId]);
+      },
+      error: (err) => {
+        this.snack.open(err?.error?.message ?? 'Erreur lors de la suppression', 'Fermer', { duration: 4000 });
+        this.deletingPlan.set(false);
+      }
+    });
+  }
+
+  toggleArchives(): void {
+    if (this.showArchives()) {
+      this.showArchives.set(false);
+      return;
+    }
+    this.showArchives.set(true);
+    if (this.archives().length) return; // déjà chargé
+    this.loadingArchives.set(true);
+    this.planSvc.getArchives(this.plan()!.id).subscribe({
+      next: list => { this.archives.set(list); this.loadingArchives.set(false); },
+      error: () => this.loadingArchives.set(false)
     });
   }
 }

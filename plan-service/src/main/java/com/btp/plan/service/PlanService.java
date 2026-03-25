@@ -151,6 +151,8 @@ public class PlanService {
             throw new IllegalStateException("Le plan n'a aucune version à émettre");
         }
 
+        archiverSnapshot(plan, userId);
+
         if ("-".equals(derniereVersion.getIndice())) {
             derniereVersion.setIndice("A");
         }
@@ -185,6 +187,8 @@ public class PlanService {
             throw new IllegalStateException(
                     "Le plan doit être EMIS avant d'être soumis. Statut actuel : " + plan.getStatut());
         }
+
+        archiverSnapshot(plan, userId);
 
         plan.setStatut(StatutPlan.EN_CONTROLE_INTERNE);
         plan.getHistorique().add(HistoriqueEntry.builder()
@@ -246,6 +250,8 @@ public class PlanService {
                 .fichierUrl(request.getFichierUrl())
                 .uploadePar(userId)
                 .build();
+
+        archiverSnapshot(plan, userId);
 
         plan.getVersions().add(newVersion);
         plan.setStatut(StatutPlan.BROUILLON);

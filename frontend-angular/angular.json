@@ -50,6 +50,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "k8s": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.k8s.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -62,6 +73,9 @@
             },
             "development": {
               "buildTarget": "frontend-angular:build:development"
+            },
+            "k8s": {
+              "buildTarget": "frontend-angular:build:k8s"
             }
           },
           "defaultConfiguration": "development"
