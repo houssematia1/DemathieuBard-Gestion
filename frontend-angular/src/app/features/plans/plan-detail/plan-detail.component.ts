@@ -356,33 +356,24 @@ import { AuthService } from '../../../core/auth/auth.service';
             <option value="VISA">Visa</option>
           </select>
         </div>
-        <!-- Si l'utilisateur connecté EST contrôleur → auto-assigné, pas de dropdown -->
-        @if (isControle()) {
-          <div class="info-assign">
-            <mat-icon>how_to_reg</mat-icon>
-            <span>Vous serez assigné comme contrôleur.</span>
-          </div>
-        } @else {
-          <!-- ADMIN ou autre : choisir dans la liste -->
-          <div class="field-group">
-            <label>Contrôleur assigné <span class="req">*</span></label>
-            @if (loadingControleurs()) {
-              <p class="loading-hint">Chargement…</p>
-            } @else if (controleurs().length === 0) {
-              <p class="loading-hint" style="color:#B91C1C">Aucun contrôleur trouvé.</p>
-            } @else {
-              <select formControlName="controleurId" class="field-input field-select">
-                <option value="">— Sélectionner un contrôleur —</option>
-                @for (u of getFilteredControleurs(); track u.id) {
-                  <option [value]="u.id">
-                    {{ u.prenom }} {{ u.nom }}
-                    — {{ u.role === 'CONTROLEUR_INTERNE' ? 'Ctrl. Interne' : 'Ctrl. Externe' }}
-                  </option>
-                }
-              </select>
-            }
-          </div>
-        }
+        <div class="field-group">
+          <label>Contrôleur assigné <span class="req">*</span></label>
+          @if (loadingControleurs()) {
+            <p class="loading-hint">Chargement…</p>
+          } @else if (controleurs().length === 0) {
+            <p class="loading-hint" style="color:#B91C1C">Aucun contrôleur trouvé.</p>
+          } @else {
+            <select formControlName="controleurId" class="field-input field-select">
+              <option value="">— Sélectionner un contrôleur —</option>
+              @for (u of getFilteredControleurs(); track u.id) {
+                <option [value]="u.id">
+                  {{ u.prenom }} {{ u.nom }}
+                  — {{ u.role === 'CONTROLEUR_INTERNE' ? 'Ctrl. Interne' : 'Ctrl. Externe' }}
+                </option>
+              }
+            </select>
+          }
+        </div>
         <div class="dialog-actions">
           <button type="button" class="btn-cancel" (click)="closeControleDialog()">Annuler</button>
           <button type="submit" class="btn-submit"
@@ -842,18 +833,12 @@ export class PlanDetailComponent implements OnInit {
     return p.statut === 'BROUILLON' && ['PROJETEUR', 'EMETTEUR', 'ADMIN'].includes(this.role);
   }
 
-  /** Peut créer un contrôle selon son rôle et le statut du plan */
+  /** Peut créer un contrôle : ADMIN, CHEF_PROJET, EMETTEUR uniquement */
   canControler(p: Plan): boolean {
-    if (this.role === 'ADMIN') {
-      return ['EN_CONTROLE_INTERNE', 'EN_CONTROLE_EXTERNE', 'EN_CONTROLE_TECHNIQUE'].includes(p.statut);
+    if (!['EN_CONTROLE_INTERNE', 'EN_CONTROLE_EXTERNE', 'EN_CONTROLE_TECHNIQUE'].includes(p.statut)) {
+      return false;
     }
-    if (this.role === 'CONTROLEUR_INTERNE') {
-      return p.statut === 'EN_CONTROLE_INTERNE';
-    }
-    if (this.role === 'CONTROLEUR_EXTERNE') {
-      return p.statut === 'EN_CONTROLE_EXTERNE';
-    }
-    return false;
+    return ['ADMIN', 'CHEF_PROJET', 'EMETTEUR'].includes(this.role);
   }
 
   fileIcon(name: string): string {
@@ -986,32 +971,22 @@ export class PlanDetailComponent implements OnInit {
   }
 
   openControleDialog(): void {
-    // typeControle déduit du statut du plan (priorité) ou du rôle si contrôleur
-    const defaultType = this.isControle()
-      ? (this.role === 'CONTROLEUR_EXTERNE' ? 'CONTROLE_EXTERNE' : 'CONTROLE_INTERNE')
-      : this.typeControleFromStatut();
-
+    const defaultType = this.typeControleFromStatut();
     this.controleForm.reset({ typeControle: defaultType, controleurId: '' });
     this.controleurs.set([]);
     this.showControleDialog.set(true);
 
-    if (this.isControle()) {
-      // L'utilisateur connecté EST contrôleur → on l'assigne directement, pas de liste
-      this.controleForm.patchValue({ controleurId: this.userId });
-    } else {
-      // ADMIN → charger toute la liste, le filtrage se fait via getFilteredControleurs()
-      this.loadingControleurs.set(true);
-      forkJoin({
-        internes: this.userSvc.getByRole('CONTROLEUR_INTERNE'),
-        externes: this.userSvc.getByRole('CONTROLEUR_EXTERNE'),
-      }).subscribe({
-        next: ({ internes, externes }) => {
-          this.controleurs.set([...internes, ...externes].filter(u => u.actif));
-          this.loadingControleurs.set(false);
-        },
-        error: () => this.loadingControleurs.set(false),
-      });
-    }
+    this.loadingControleurs.set(true);
+    forkJoin({
+      internes: this.userSvc.getByRole('CONTROLEUR_INTERNE'),
+      externes: this.userSvc.getByRole('CONTROLEUR_EXTERNE'),
+    }).subscribe({
+      next: ({ internes, externes }) => {
+        this.controleurs.set([...internes, ...externes].filter(u => u.actif));
+        this.loadingControleurs.set(false);
+      },
+      error: () => this.loadingControleurs.set(false),
+    });
   }
 
   /** Filtre la liste des contrôleurs selon le typeControle sélectionné */

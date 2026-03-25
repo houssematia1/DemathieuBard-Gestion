@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Notification } from '../models/notification.model';
 
@@ -11,19 +11,18 @@ export class NotificationService {
 
   unreadCount = signal(0);
 
-  getByUser(userId: string): Observable<Notification[]> {
-    const params = new HttpParams().set('userId', userId);
-    return this.http.get<Notification[]>(this.base, { params });
+  getByUser(_userId: string): Observable<Notification[]> {
+    return this.http.get<any>(this.base).pipe(
+      map(r => Array.isArray(r) ? r : (r?.content ?? []))
+    );
   }
 
-  getNonLues(userId: string): Observable<Notification[]> {
-    const params = new HttpParams().set('userId', userId);
-    return this.http.get<Notification[]>(`${this.base}/non-lues`, { params });
+  getNonLues(_userId: string): Observable<Notification[]> {
+    return this.http.get<Notification[]>(`${this.base}/non-lues`);
   }
 
-  getCount(userId: string): Observable<{ count: number }> {
-    const params = new HttpParams().set('userId', userId);
-    return this.http.get<{ count: number }>(`${this.base}/count`, { params }).pipe(
+  getCount(_userId: string): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${this.base}/count`).pipe(
       tap(r => this.unreadCount.set(r.count))
     );
   }
@@ -32,9 +31,8 @@ export class NotificationService {
     return this.http.put<Notification>(`${this.base}/${id}/lue`, {});
   }
 
-  marquerToutesLues(userId: string): Observable<void> {
-    const params = new HttpParams().set('userId', userId);
-    return this.http.put<void>(`${this.base}/tout-lire`, {}, { params }).pipe(
+  marquerToutesLues(_userId: string): Observable<void> {
+    return this.http.put<void>(`${this.base}/tout-lire`, {}).pipe(
       tap(() => this.unreadCount.set(0))
     ) as Observable<void>;
   }
