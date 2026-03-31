@@ -6,9 +6,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import { PlanService } from '../../../core/services/plan.service';
+import { PlanService, UpdatePlanPayload } from '../../../core/services/plan.service';
 import { ControleService, CreateControlePayload, DecisionPayload } from '../../../core/services/controle.service';
 import { UserService } from '../../../core/services/user.service';
 import { Plan, PlanArchive, STATUT_PLAN, ETAT_PLAN, TYPE_PLAN, Version, getStatutPlan } from '../../../core/models/plan.model';
@@ -117,6 +117,11 @@ import { AuthService } from '../../../core/auth/auth.service';
       @if (canControler(p)) {
         <button class="btn-action" (click)="openControleDialog()">
           <mat-icon>fact_check</mat-icon> Créer un contrôle
+        </button>
+      }
+      @if (canEdit(p)) {
+        <button class="btn-action" (click)="openEditDialog()">
+          <mat-icon>edit</mat-icon> Modifier
         </button>
       }
       <div class="actions-spacer"></div>
@@ -290,6 +295,92 @@ import { AuthService } from '../../../core/auth/auth.service';
   }
   } <!-- end @else -->
 </div>
+
+<!-- ── Edit Plan Dialog ─────────────────────────────────────────── -->
+@if (showEditDialog()) {
+  <div class="dialog-backdrop" (click)="closeEditDialog()">
+    <div class="dialog-box dialog-box-wide" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>Modifier le plan</h2>
+        <button class="dialog-close" (click)="closeEditDialog()"><mat-icon>close</mat-icon></button>
+      </div>
+      <form [formGroup]="planEditForm" (ngSubmit)="submitEditPlan()" class="dialog-form">
+        <div class="field-row">
+          <div class="field-group" style="flex:2">
+            <label>Nom <span class="req">*</span></label>
+            <input formControlName="nom" class="field-input" placeholder="Ex: Plan coffrage RDC - Bloc A" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Prestation <span class="req">*</span></label>
+            <select formControlName="typePrestation" class="field-input field-select">
+              <option value="PDB">PDB — Plan de base</option>
+              <option value="PS">PS — Plan de synthèse</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Auteur</label>
+            <input formControlName="auteur" class="field-input" placeholder="Ex: Anis Meddeb" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Niveau</label>
+            <select formControlName="niveau" class="field-input field-select">
+              <option value="">— Aucun —</option>
+              <option value="GEN">GEN — Général</option>
+              <option value="FND">FND — Fondations</option>
+              <option value="SS2">SS2 — Sous-sol 2</option>
+              <option value="SS1">SS1 — Sous-sol 1</option>
+              <option value="RDC">RDC — Rez-de-chaussée</option>
+              <option value="ETG1">ETG1 — Étage 1</option>
+              <option value="ETG2">ETG2 — Étage 2</option>
+              <option value="ETG3">ETG3 — Étage 3</option>
+              <option value="ETG4">ETG4 — Étage 4</option>
+              <option value="ETG5">ETG5 — Étage 5</option>
+              <option value="TER">TER — Terrasse</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Lot</label>
+            <input formControlName="lot" class="field-input" placeholder="Ex: Gros Œuvre" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Nb planches</label>
+            <input formControlName="nombrePlanches" type="number" min="1" class="field-input" placeholder="1" />
+          </div>
+          <div class="field-group">
+            <label>Date d'engagement</label>
+            <input formControlName="dateEngagement" type="date" class="field-input" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Projeteur assigné</label>
+          @if (loadingProjeteurs()) {
+            <p class="loading-hint">Chargement…</p>
+          } @else {
+            <select formControlName="projeteurId" class="field-input field-select">
+              <option value="">— Sélectionner un projeteur —</option>
+              @for (u of projeteurs(); track u.id) {
+                <option [value]="u.id">{{ u.prenom }} {{ u.nom }}</option>
+              }
+            </select>
+          }
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn-cancel" (click)="closeEditDialog()">Annuler</button>
+          <button type="submit" class="btn-submit" [disabled]="planEditForm.invalid || submittingEdit()">
+            @if (submittingEdit()) { <mat-spinner diameter="16" /> }
+            Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
 
 <!-- ── Version Dialog ──────────────────────────────────────────── -->
 @if (showVersionDialog()) {
@@ -625,6 +716,7 @@ import { AuthService } from '../../../core/auth/auth.service';
       background: #fff; border-radius: 10px; width: 480px; max-width: 95vw;
       box-shadow: 0 20px 60px rgba(0,0,0,.2);
     }
+    .dialog-box-wide { width: 600px; }
     .dialog-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 20px 24px 0;
@@ -645,6 +737,7 @@ import { AuthService } from '../../../core/auth/auth.service';
       outline: none; font-family: inherit; background: #fff;
       &:focus { border-color: var(--db-navy); }
     }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .field-textarea { resize: vertical; min-height: 72px; }
     .field-select { appearance: auto; }
     .dialog-actions {
@@ -779,11 +872,15 @@ export class PlanDetailComponent implements OnInit {
   loadingArchives = signal(false);
   showVersionDialog = signal(false);
   showControleDialog = signal(false);
+  showEditDialog = signal(false);
   showArchives = signal(false);
   submitting = signal(false);
   submittingControle = signal(false);
+  submittingEdit = signal(false);
   deletingPlan = signal(false);
   selectedVersionFile = signal<File | null>(null);
+  projeteurs = signal<UtilisateurDto[]>([]);
+  loadingProjeteurs = signal(false);
 
   readonly STATUT_PLAN = STATUT_PLAN;
   readonly getStatutPlan = getStatutPlan;
@@ -808,6 +905,17 @@ export class PlanDetailComponent implements OnInit {
   controleForm = this.fb.group({
     typeControle: ['CONTROLE_INTERNE'],
     controleurId: [''],
+  });
+
+  planEditForm = this.fb.group({
+    nom:            ['', Validators.required],
+    typePrestation: ['PDB', Validators.required],
+    auteur:         [''],
+    niveau:         [''],
+    lot:            [''],
+    nombrePlanches: [null as number | null],
+    dateEngagement: [''],
+    projeteurId:    [''],
   });
 
   get userId(): string { return this.auth.currentUser()?.userId ?? ''; }
@@ -1061,6 +1169,61 @@ export class PlanDetailComponent implements OnInit {
       error: (err) => {
         this.snack.open(err?.error?.message ?? 'Erreur lors de la suppression', 'Fermer', { duration: 4000 });
         this.deletingPlan.set(false);
+      }
+    });
+  }
+
+  canEdit(p: Plan): boolean {
+    return p.statut === 'BROUILLON' &&
+      ['ADMIN', 'CHEF_PROJET', 'PROJETEUR', 'EMETTEUR'].includes(this.role);
+  }
+
+  openEditDialog(): void {
+    const p = this.plan()!;
+    this.planEditForm.patchValue({
+      nom:            p.nom,
+      typePrestation: p.typePrestation ?? 'PDB',
+      auteur:         p.auteur ?? '',
+      niveau:         p.niveau ?? '',
+      lot:            p.lot ?? '',
+      nombrePlanches: p.nombrePlanches ?? null,
+      dateEngagement: p.dateEngagement?.slice(0, 10) ?? '',
+      projeteurId:    p.projeteurId ?? '',
+    });
+    this.loadingProjeteurs.set(true);
+    this.userSvc.getByRole('PROJETEUR').subscribe({
+      next: list => { this.projeteurs.set(list.filter(u => u.actif)); this.loadingProjeteurs.set(false); },
+      error: () => this.loadingProjeteurs.set(false),
+    });
+    this.showEditDialog.set(true);
+  }
+
+  closeEditDialog(): void { this.showEditDialog.set(false); }
+
+  submitEditPlan(): void {
+    if (this.planEditForm.invalid) return;
+    this.submittingEdit.set(true);
+    const v = this.planEditForm.value;
+    const payload: UpdatePlanPayload = {
+      nom:            v.nom ?? undefined,
+      typePrestation: (v.typePrestation as any) ?? undefined,
+      auteur:         v.auteur || undefined,
+      niveau:         v.niveau || undefined,
+      lot:            v.lot || undefined,
+      nombrePlanches: v.nombrePlanches ?? undefined,
+      dateEngagement: v.dateEngagement || undefined,
+      projeteurId:    v.projeteurId || undefined,
+    };
+    this.planSvc.update(this.plan()!.id, payload).subscribe({
+      next: updated => {
+        this.plan.set(updated);
+        this.snack.open('Plan modifié', 'OK', { duration: 3000 });
+        this.closeEditDialog();
+        this.submittingEdit.set(false);
+      },
+      error: (err) => {
+        this.snack.open(err?.error?.message ?? 'Erreur lors de la modification', 'Fermer', { duration: 4000 });
+        this.submittingEdit.set(false);
       }
     });
   }

@@ -47,7 +47,7 @@ import { ROLE_LABELS, Role } from '../../../core/models/user.model';
             <div class="field-row">
               <mat-form-field appearance="outline">
                 <mat-label>Nom</mat-label>
-                <input matInput formControlName="nom" placeholder="Dupont">
+                <input matInput formControlName="nom" placeholder="Ben Salah">
                 @if (f['nom'].hasError('required') && f['nom'].touched) {
                   <mat-error>Nom obligatoire</mat-error>
                 }
@@ -55,7 +55,7 @@ import { ROLE_LABELS, Role } from '../../../core/models/user.model';
 
               <mat-form-field appearance="outline">
                 <mat-label>Prénom</mat-label>
-                <input matInput formControlName="prenom" placeholder="Jean">
+                <input matInput formControlName="prenom" placeholder="Mohamed">
                 @if (f['prenom'].hasError('required') && f['prenom'].touched) {
                   <mat-error>Prénom obligatoire</mat-error>
                 }
@@ -65,7 +65,7 @@ import { ROLE_LABELS, Role } from '../../../core/models/user.model';
             <!-- Email -->
             <mat-form-field appearance="outline" class="full">
               <mat-label>Adresse email professionnelle</mat-label>
-              <input matInput type="email" formControlName="email" placeholder="j.dupont@btp.fr">
+              <input matInput type="email" formControlName="email" placeholder="m.bensalah@btp.tn">
               <mat-icon matSuffix>email</mat-icon>
               @if (f['email'].hasError('required') && f['email'].touched) {
                 <mat-error>Email obligatoire</mat-error>

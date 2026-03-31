@@ -274,7 +274,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
           </div>
           <div class="field-group">
             <label>Auteur</label>
-            <input formControlName="auteur" class="field-input" placeholder="Nom de l'auteur" />
+            <input formControlName="auteur" class="field-input" placeholder="Ex: Anis Meddeb" />
           </div>
         </div>
         <div class="field-row">

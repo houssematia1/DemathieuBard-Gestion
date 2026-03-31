@@ -154,7 +154,7 @@ import { AuthService } from '../../../core/auth/auth.service';
       <form [formGroup]="form" (ngSubmit)="submitCreate()" class="dialog-form">
         <div class="field-group">
           <label>Nom <span class="req">*</span></label>
-          <input formControlName="nom" class="field-input" placeholder="Ex: Construction Tour A" />
+          <input formControlName="nom" class="field-input" placeholder="Ex: Résidence Les Jasmins - Sousse" />
           @if (form.get('nom')?.invalid && form.get('nom')?.touched) {
             <span class="field-error">Nom requis</span>
           }
@@ -167,11 +167,11 @@ import { AuthService } from '../../../core/auth/auth.service';
         <div class="field-row">
           <div class="field-group">
             <label>Client (Maître d'ouvrage)</label>
-            <input formControlName="client" class="field-input" placeholder="Ex: Vinci Construction" />
+            <input formControlName="client" class="field-input" placeholder="Ex: STAM Tunisie" />
           </div>
           <div class="field-group">
             <label>Localisation</label>
-            <input formControlName="localisation" class="field-input" placeholder="Ex: Paris 15e" />
+            <input formControlName="localisation" class="field-input" placeholder="Ex: Tunis Lac 2" />
           </div>
         </div>
         <div class="field-group">

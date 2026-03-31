@@ -120,7 +120,7 @@ import { AuthService } from '../../../core/auth/auth.service';
                 matInput
                 type="email"
                 formControlName="email"
-                placeholder="nom@demathieu-bard.fr"
+                placeholder="nom@demathieu-bard.tn"
                 autocomplete="email">
               <mat-icon matSuffix class="field-icon">email</mat-icon>
               @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
