@@ -29,7 +29,7 @@ export interface CommentairePayload {
 @Injectable({ providedIn: 'root' })
 export class ControleService {
   private http = inject(HttpClient);
-  private base = `${environment.apiUrl}/api/controles`;
+  private base = `${environment.apiUrl}/controles`;
 
   getByPlan(planId: string): Observable<Controle[]> {
     const params = new HttpParams().set('planId', planId);

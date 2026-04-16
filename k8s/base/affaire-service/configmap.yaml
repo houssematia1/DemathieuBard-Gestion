@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: affaire-service-config
+  namespace: btp-app
+data:
+  SPRING_APPLICATION_NAME: affaire-service
+  SERVER_PORT: "8081"
+
+  MONGODB_HOST: mongodb
+  MONGODB_PORT: "27017"
+  MONGODB_DATABASE: btp_affaire
+  MONGODB_AUTHSOURCE: admin
+
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always

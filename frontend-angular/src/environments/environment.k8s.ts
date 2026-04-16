@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:30081'  // API Gateway (Kubernetes NodePort)
+  apiUrl: '/api'  // Via Ingress K8s (chemin relatif — fonctionne quel que soit le port exposé)
 };

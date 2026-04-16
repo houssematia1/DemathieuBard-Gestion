@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-service-config
+  namespace: btp-app
+data:
+  SPRING_APPLICATION_NAME: notification-service
+
+  SERVER_PORT: "8085"
+
+  # MongoDB
+  SPRING_DATA_MONGODB_URI: mongodb://admin:btppassword@mongodb:27017/btp_notification?authSource=admin
+
+  # Eureka
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+
+  # RabbitMQ
+  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_PORT: "5672"
+
+  # MailHog
+  SPRING_MAIL_HOST: mailhog
+  SPRING_MAIL_PORT: "1025"
+  SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "false"
+  SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "false"
+
+  # Actuator
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always²

@@ -28,13 +28,13 @@ export class AuthService {
   /* ── Auth ─────────────────────────────────────────────────── */
 
   login(payload: LoginRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${environment.apiUrl}/api/auth/login`, payload).pipe(
+    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/login`, payload).pipe(
       tap(response => this.saveSession(response))
     );
   }
 
   register(payload: RegisterRequest): Observable<UtilisateurDto> {
-    return this.http.post<UtilisateurDto>(`${environment.apiUrl}/api/auth/register`, payload);
+    return this.http.post<UtilisateurDto>(`${environment.apiUrl}/auth/register`, payload);
   }
 
   logout(): void {

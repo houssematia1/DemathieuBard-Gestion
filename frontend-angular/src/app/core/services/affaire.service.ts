@@ -28,7 +28,7 @@ export interface UpdateAffairePayload {
 @Injectable({ providedIn: 'root' })
 export class AffaireService {
   private http = inject(HttpClient);
-  private base = `${environment.apiUrl}/api/affaires`;
+  private base = `${environment.apiUrl}/affaires`;
 
   getAll(page = 0, size = 20): Observable<Page<Affaire>> {
     const params = new HttpParams().set('page', page).set('size', size);

@@ -7,7 +7,7 @@ import { Notification } from '../models/notification.model';
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private http = inject(HttpClient);
-  private base = `${environment.apiUrl}/api/notifications`;
+  private base = `${environment.apiUrl}/notifications`;
 
   unreadCount = signal(0);
 

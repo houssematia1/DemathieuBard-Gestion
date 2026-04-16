@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: affaire-service
+  namespace: btp-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: affaire-service
+  template:
+    metadata:
+      labels:
+        app: affaire-service
+    spec:
+      containers:
+        - name: affaire-service
+          image: affaire-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8081
+
+          envFrom:
+            - configMapRef:
+                name: affaire-service-config
+            - secretRef:
+                name: affaire-service-secret
+
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://$(MONGODB_USERNAME):$(MONGODB_PASSWORD)@$(MONGODB_HOST):$(MONGODB_PORT)/$(MONGODB_DATABASE)?authSource=$(MONGODB_AUTHSOURCE)"
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 45
+            periodSeconds: 15
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

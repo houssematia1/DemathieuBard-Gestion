@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controle-service
+  namespace: btp-app
+  labels:
+    app: controle-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: controle-service
+  template:
+    metadata:
+      labels:
+        app: controle-service
+    spec:
+      containers:
+        - name: controle-service
+          image: controle-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8083
+
+          envFrom:
+            - configMapRef:
+                name: controle-service-config
+            - secretRef:
+                name: controle-service-secret
+
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://$(MONGODB_USERNAME):$(MONGODB_PASSWORD)@$(MONGODB_HOST):$(MONGODB_PORT)/$(MONGODB_DATABASE)?authSource=$(MONGODB_AUTHSOURCE)"
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

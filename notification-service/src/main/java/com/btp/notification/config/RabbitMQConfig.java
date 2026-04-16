@@ -1,5 +1,6 @@
 package com.btp.notification.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -23,33 +24,31 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(QUEUE).build();
     }
 
-    // Capturer tous les événements plan.* (modifié, émis, soumis, fichier ajouté, état changé...)
     @Bean
-    public Binding bindingPlanAll(Queue notificationQueue, TopicExchange btpExchange) {
+    public Binding bindingPlan(Queue notificationQueue, TopicExchange btpExchange) {
         return BindingBuilder.bind(notificationQueue).to(btpExchange).with("plan.#");
     }
 
-    // Capturer tous les événements controle.* (ajouté, valide, modification...)
     @Bean
-    public Binding bindingControleAll(Queue notificationQueue, TopicExchange btpExchange) {
+    public Binding bindingControle(Queue notificationQueue, TopicExchange btpExchange) {
         return BindingBuilder.bind(notificationQueue).to(btpExchange).with("controle.#");
     }
 
-    // Capturer tous les événements visa.*
     @Bean
-    public Binding bindingVisaAll(Queue notificationQueue, TopicExchange btpExchange) {
+    public Binding bindingVisa(Queue notificationQueue, TopicExchange btpExchange) {
         return BindingBuilder.bind(notificationQueue).to(btpExchange).with("visa.#");
     }
 
     @Bean
-    public Jackson2JsonMessageConverter messageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public Jackson2JsonMessageConverter messageConverter(ObjectMapper objectMapper) {
+        return new Jackson2JsonMessageConverter(objectMapper);
     }
 
     @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory,
+                                         Jackson2JsonMessageConverter messageConverter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(messageConverter());
+        template.setMessageConverter(messageConverter);
         return template;
     }
 }

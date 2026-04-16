@@ -8,7 +8,7 @@ import { PageResponse, UpdateRoleRequest, UpdateUserRequest, UtilisateurDto } fr
 export class UserService {
 
   private http = inject(HttpClient);
-  private base = `${environment.apiUrl}/api/users`;
+  private base = `${environment.apiUrl}/users`;
 
   getAll(page = 0, size = 20): Observable<PageResponse<UtilisateurDto>> {
     const params = new HttpParams().set('page', page).set('size', size);

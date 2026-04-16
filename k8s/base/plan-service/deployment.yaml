@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plan-service
+  namespace: btp-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plan-service
+  template:
+    metadata:
+      labels:
+        app: plan-service
+    spec:
+      containers:
+        - name: plan-service
+          image: btp-plan:latest
+          imagePullPolicy: Never 
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: plan-service-config
+          env:
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: username
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: jwt-secret
+          volumeMounts:
+            - name: plan-uploads
+              mountPath: /app/uploads
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            initialDelaySeconds: 45
+            periodSeconds: 20
+      volumes:
+        - name: plan-uploads
+          persistentVolumeClaim:
+            claimName: plan-uploads-pvc

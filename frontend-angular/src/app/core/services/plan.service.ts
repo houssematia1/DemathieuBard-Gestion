@@ -39,7 +39,7 @@ export interface AddVersionPayload {
 @Injectable({ providedIn: 'root' })
 export class PlanService {
   private http = inject(HttpClient);
-  private base = `${environment.apiUrl}/api/plans`;
+  private base = `${environment.apiUrl}/plans`;
 
   getByAffaire(affaireId: string): Observable<Plan[]> {
     const params = new HttpParams().set('affaireId', affaireId);
