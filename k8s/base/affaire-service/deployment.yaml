@@ -16,7 +16,7 @@ spec:
       containers:
         - name: affaire-service
           image: affaire-service:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
 
