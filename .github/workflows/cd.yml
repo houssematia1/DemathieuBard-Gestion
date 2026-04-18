@@ -50,3 +50,15 @@ jobs:
           context: ./api-gateway
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest
+
+
+                - name: Build frontend
+        working-directory: ./frontend-angular
+        run: npm ci && npm run build
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend-angular
+          push: true
+          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
