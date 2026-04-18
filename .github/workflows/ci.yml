@@ -23,31 +23,31 @@ jobs:
 
       - name: Build eureka-server
         working-directory: ./eureka-server
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean clean test 
 
       - name: Build api-gateway
         working-directory: ./api-gateway
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean clean test 
 
       - name: Build user-service
         working-directory: ./user-service
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean clean test 
 
       - name: Build plan-service
         working-directory: ./plan-service
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean clean test 
 
       - name: Build notification-service
         working-directory: ./notification-service
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean clean test 
 
       - name: Build affaire-service
         working-directory: ./affaire-service
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean clean test 
 
       - name: Build controle-service
         working-directory: ./controle-service
-        run: mvn -B clean package -DskipTests
+        run: mvn -B clean clean test 
 
   build-frontend:
     runs-on: ubuntu-latest
