@@ -6,7 +6,7 @@ on:
 
 jobs:
   docker-images:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
 
     steps:
       - name: Checkout repository
@@ -62,3 +62,26 @@ jobs:
           context: ./frontend-angular
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+
+
+      - name: Check kubectl context
+        run: kubectl config current-context
+        shell: powershell
+
+      - name: Deploy user-service
+        run: |
+          kubectl set image deployment/user-service user-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest -n btp-app
+          kubectl rollout status deployment/user-service -n btp-app --timeout=180s
+        shell: powershell
+
+      - name: Deploy api-gateway
+        run: |
+          kubectl set image deployment/api-gateway api-gateway=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest -n btp-app
+          kubectl rollout status deployment/api-gateway -n btp-app --timeout=180s
+        shell: powershell
+
+      - name: Deploy frontend
+        run: |
+          kubectl set image deployment/frontend frontend=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest -n btp-app
+          kubectl rollout status deployment/frontend -n btp-app --timeout=180s
+        shell: powershell    
