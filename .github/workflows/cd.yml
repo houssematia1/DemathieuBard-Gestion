@@ -29,6 +29,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
+          registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
@@ -37,4 +38,4 @@ jobs:
         with:
           context: ./user-service
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
