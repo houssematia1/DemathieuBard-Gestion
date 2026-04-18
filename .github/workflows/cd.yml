@@ -52,7 +52,7 @@ jobs:
           tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest
 
 
-                - name: Build frontend
+      - name: Build frontend
         working-directory: ./frontend-angular
         run: npm ci && npm run build
 
