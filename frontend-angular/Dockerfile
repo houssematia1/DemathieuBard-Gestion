@@ -1,17 +1,15 @@
-# Build stage
 FROM node:20-alpine AS build
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm ci --include=dev
 
 COPY . .
 
-RUN npm run build
+RUN npx ng build --configuration production
 
-# Production stage
 FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
