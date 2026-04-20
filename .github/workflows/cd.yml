@@ -36,20 +36,20 @@ jobs:
 
       - name: Build and push user-service image
         run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest ./user-service
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }} ./user-service
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
         shell: powershell
 
       - name: Build and push api-gateway image
         run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest ./api-gateway
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest
+          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} ./api-gateway
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
         shell: powershell
 
       - name: Build and push frontend image
         run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest ./frontend-angular
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }} ./frontend-angular
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
         shell: powershell
 
       - name: Check kubectl context
@@ -58,18 +58,18 @@ jobs:
 
       - name: Deploy user-service
         run: |
-          kubectl set image deployment/user-service user-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest -n btp-app
+          kubectl set image deployment/user-service user-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }} -n btp-app
           kubectl rollout status deployment/user-service -n btp-app --timeout=180s
         shell: powershell
 
       - name: Deploy api-gateway
         run: |
-          kubectl set image deployment/api-gateway api-gateway=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest -n btp-app
+          kubectl set image deployment/api-gateway api-gateway=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} -n btp-app
           kubectl rollout status deployment/api-gateway -n btp-app --timeout=180s
         shell: powershell
 
       - name: Deploy frontend
         run: |
-          kubectl set image deployment/frontend frontend=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest -n btp-app
+          kubectl set image deployment/frontend frontend=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }} -n btp-app
           kubectl rollout status deployment/frontend -n btp-app --timeout=180s
         shell: powershell
