@@ -4,7 +4,7 @@ import {
   RouterOutlet,
   provideRouter,
   withComponentInputBinding
-} from "./chunk-YXL4TWJQ.js";
+} from "./chunk-Y5SY5EAS.js";
 import {
   ANIMATION_MODULE_TYPE,
   AUTO_STYLE,
@@ -40,7 +40,7 @@ import {
   ɵɵdefineNgModule,
   ɵɵelement,
   ɵɵinject
-} from "./chunk-Y6YIWLLK.js";
+} from "./chunk-BG5BOB2C.js";
 
 // src/app/app.component.ts
 var AppComponent = class _AppComponent {
@@ -4208,11 +4208,11 @@ var routes = [
     children: [
       {
         path: "login",
-        loadComponent: () => import("./chunk-ZCFA7IKR.js").then((m) => m.LoginComponent)
+        loadComponent: () => import("./chunk-5FTYZL6R.js").then((m) => m.LoginComponent)
       },
       {
         path: "register",
-        loadComponent: () => import("./chunk-OKRQKHCM.js").then((m) => m.RegisterComponent)
+        loadComponent: () => import("./chunk-RCJIXQ2Z.js").then((m) => m.RegisterComponent)
       },
       { path: "", redirectTo: "login", pathMatch: "full" }
     ]
@@ -4220,51 +4220,51 @@ var routes = [
   /* ── App (protégé) ────────────────────────────────────────── */
   {
     path: "",
-    loadComponent: () => import("./chunk-J5EBA7CE.js").then((m) => m.MainLayoutComponent),
+    loadComponent: () => import("./chunk-N7LHGP35.js").then((m) => m.MainLayoutComponent),
     canActivate: [authGuard],
     children: [
       {
         path: "dashboard",
-        loadComponent: () => import("./chunk-DGDQWRLI.js").then((m) => m.DashboardComponent)
+        loadComponent: () => import("./chunk-U7ZAUC7V.js").then((m) => m.DashboardComponent)
       },
       /* ── Affaires ─────────────────────────────────────── */
       {
         path: "affaires",
-        loadComponent: () => import("./chunk-6IHTUY25.js").then((m) => m.AffaireListComponent)
+        loadComponent: () => import("./chunk-YQP4JYU2.js").then((m) => m.AffaireListComponent)
       },
       {
         path: "affaires/:id",
-        loadComponent: () => import("./chunk-ILJ3I4BB.js").then((m) => m.AffaireDetailComponent)
+        loadComponent: () => import("./chunk-5WGQKTYZ.js").then((m) => m.AffaireDetailComponent)
       },
       /* ── Plans ────────────────────────────────────────── */
       {
         path: "plans",
-        loadComponent: () => import("./chunk-NXFP6CDI.js").then((m) => m.PlanListComponent)
+        loadComponent: () => import("./chunk-WNCUBKXU.js").then((m) => m.PlanListComponent)
       },
       {
         path: "plans/:id",
-        loadComponent: () => import("./chunk-BK2XFF52.js").then((m) => m.PlanDetailComponent)
+        loadComponent: () => import("./chunk-DKSMMIFP.js").then((m) => m.PlanDetailComponent)
       },
       /* ── Contrôles ────────────────────────────────────── */
       {
         path: "controles",
-        loadComponent: () => import("./chunk-ZXWZU7CE.js").then((m) => m.ControleListComponent)
+        loadComponent: () => import("./chunk-TR2VEECA.js").then((m) => m.ControleListComponent)
       },
       /* ── Notifications ────────────────────────────────── */
       {
         path: "notifications",
-        loadComponent: () => import("./chunk-FFZVN2R6.js").then((m) => m.NotificationPanelComponent)
+        loadComponent: () => import("./chunk-3V6JWSSS.js").then((m) => m.NotificationPanelComponent)
       },
       /* ── Users ────────────────────────────────────────── */
       {
         path: "users",
-        loadComponent: () => import("./chunk-6KX4RJWH.js").then((m) => m.UserListComponent),
+        loadComponent: () => import("./chunk-WQB7M5T3.js").then((m) => m.UserListComponent),
         canActivate: [roleGuard],
         data: { roles: ["ADMIN"] }
       },
       {
         path: "profile",
-        loadComponent: () => import("./chunk-JKI2NMEF.js").then((m) => m.UserProfileComponent)
+        loadComponent: () => import("./chunk-NRJ3DUYD.js").then((m) => m.UserProfileComponent)
       },
       { path: "", redirectTo: "dashboard", pathMatch: "full" }
     ]

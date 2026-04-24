@@ -435,7 +435,7 @@ html {
 }
 html {
   --mat-option-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -446,7 +446,7 @@ html {
 }
 html {
   --mat-optgroup-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -476,7 +476,7 @@ html {
 }
 html {
   --mat-card-title-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -485,7 +485,7 @@ html {
   --mat-card-title-text-tracking: normal;
   --mat-card-title-text-weight: 600;
   --mat-card-subtitle-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -521,7 +521,7 @@ html {
 }
 html {
   --mdc-plain-tooltip-supporting-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -623,7 +623,7 @@ html {
 }
 html {
   --mdc-filled-text-field-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -631,7 +631,7 @@ html {
   --mdc-filled-text-field-label-text-tracking: normal;
   --mdc-filled-text-field-label-text-weight: 400;
   --mdc-outlined-text-field-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -639,7 +639,7 @@ html {
   --mdc-outlined-text-field-label-text-tracking: normal;
   --mdc-outlined-text-field-label-text-weight: 400;
   --mat-form-field-container-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -649,7 +649,7 @@ html {
   --mat-form-field-container-text-weight: 400;
   --mat-form-field-outlined-label-text-populated-size: 0.9375rem;
   --mat-form-field-subscript-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -699,7 +699,7 @@ html {
 }
 html {
   --mat-select-trigger-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -741,7 +741,7 @@ html {
 }
 html {
   --mdc-dialog-subhead-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -750,7 +750,7 @@ html {
   --mdc-dialog-subhead-weight: 600;
   --mdc-dialog-subhead-tracking: normal;
   --mdc-dialog-supporting-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -880,7 +880,7 @@ html {
 }
 .mat-mdc-standard-chip {
   --mdc-chip-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1006,7 +1006,7 @@ html {
 }
 html .mat-mdc-slide-toggle {
   --mdc-form-field-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1071,7 +1071,7 @@ html {
 }
 .mat-mdc-radio-button {
   --mdc-form-field-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1151,7 +1151,7 @@ html .mat-warn {
 }
 html {
   --mdc-slider-label-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1181,7 +1181,7 @@ html {
 }
 html {
   --mat-menu-item-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1355,7 +1355,7 @@ html {
 }
 html {
   --mdc-list-list-item-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1364,7 +1364,7 @@ html {
   --mdc-list-list-item-label-text-tracking: normal;
   --mdc-list-list-item-label-text-weight: 400;
   --mdc-list-list-item-supporting-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1373,7 +1373,7 @@ html {
   --mdc-list-list-item-supporting-text-tracking: normal;
   --mdc-list-list-item-supporting-text-weight: 400;
   --mdc-list-list-item-trailing-supporting-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1384,7 +1384,7 @@ html {
 }
 .mdc-list-group__subheader {
   font:
-    500 1rem / 1.5 "Inter",
+    500 1rem / 1.5 "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1403,7 +1403,7 @@ html {
 }
 html {
   --mat-paginator-container-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1488,12 +1488,12 @@ html {
 }
 .mat-mdc-tab-header {
   --mat-tab-header-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
   --mat-tab-header-label-text-size: 0.875rem;
-  --mat-tab-header-label-text-tracking: 0.05em;
+  --mat-tab-header-label-text-tracking: 0.04em;
   --mat-tab-header-label-text-line-height: 1;
   --mat-tab-header-label-text-weight: 600;
 }
@@ -1573,7 +1573,7 @@ html {
 }
 .mat-mdc-checkbox {
   --mdc-form-field-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1748,39 +1748,39 @@ html {
 }
 html {
   --mdc-text-button-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
   --mdc-text-button-label-text-size: 0.875rem;
-  --mdc-text-button-label-text-tracking: 0.05em;
+  --mdc-text-button-label-text-tracking: 0.04em;
   --mdc-text-button-label-text-weight: 600;
   --mdc-text-button-label-text-transform: none;
   --mdc-filled-button-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
   --mdc-filled-button-label-text-size: 0.875rem;
-  --mdc-filled-button-label-text-tracking: 0.05em;
+  --mdc-filled-button-label-text-tracking: 0.04em;
   --mdc-filled-button-label-text-weight: 600;
   --mdc-filled-button-label-text-transform: none;
   --mdc-outlined-button-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
   --mdc-outlined-button-label-text-size: 0.875rem;
-  --mdc-outlined-button-label-text-tracking: 0.05em;
+  --mdc-outlined-button-label-text-tracking: 0.04em;
   --mdc-outlined-button-label-text-weight: 600;
   --mdc-outlined-button-label-text-transform: none;
   --mdc-protected-button-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
   --mdc-protected-button-label-text-size: 0.875rem;
-  --mdc-protected-button-label-text-tracking: 0.05em;
+  --mdc-protected-button-label-text-tracking: 0.04em;
   --mdc-protected-button-label-text-weight: 600;
   --mdc-protected-button-label-text-transform: none;
 }
@@ -1944,12 +1944,12 @@ html {
 }
 html {
   --mdc-extended-fab-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
   --mdc-extended-fab-label-text-size: 0.875rem;
-  --mdc-extended-fab-label-text-tracking: 0.05em;
+  --mdc-extended-fab-label-text-tracking: 0.04em;
   --mdc-extended-fab-label-text-weight: 600;
 }
 html {
@@ -1962,7 +1962,7 @@ html {
 }
 html {
   --mdc-snackbar-supporting-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1986,7 +1986,7 @@ html {
 }
 html {
   --mat-table-header-headline-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -1995,7 +1995,7 @@ html {
   --mat-table-header-headline-weight: 500;
   --mat-table-header-headline-tracking: 0.0071428571em;
   --mat-table-row-item-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2004,7 +2004,7 @@ html {
   --mat-table-row-item-label-text-weight: 400;
   --mat-table-row-item-label-text-tracking: normal;
   --mat-table-footer-supporting-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2060,7 +2060,7 @@ html {
 }
 html {
   --mat-badge-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2078,7 +2078,7 @@ html {
 }
 html {
   --mat-bottom-sheet-container-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2119,7 +2119,7 @@ html {
 }
 html {
   --mat-legacy-button-toggle-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2128,7 +2128,7 @@ html {
   --mat-legacy-button-toggle-label-text-tracking: normal;
   --mat-legacy-button-toggle-label-text-weight: 400;
   --mat-standard-button-toggle-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2221,7 +2221,7 @@ html {
 }
 html {
   --mat-datepicker-calendar-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2261,7 +2261,7 @@ html {
 }
 html {
   --mat-expansion-header-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2270,7 +2270,7 @@ html {
   --mat-expansion-header-text-line-height: inherit;
   --mat-expansion-header-text-tracking: inherit;
   --mat-expansion-container-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2356,12 +2356,12 @@ html {
 }
 html {
   --mat-stepper-container-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
   --mat-stepper-header-label-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2396,7 +2396,7 @@ html {
 }
 html {
   --mat-toolbar-title-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2414,7 +2414,7 @@ html {
 }
 html {
   --mat-tree-node-text-font:
-    "Inter",
+    "Barlow",
     Roboto,
     "Helvetica Neue",
     sans-serif;
@@ -2428,26 +2428,33 @@ html {
   --db-orange: #E8440E;
   --db-orange-hover: #C93A0B;
   --db-orange-light: #FDE9E3;
-  --db-bg: #F4F6F9;
+  --db-bg: #F3F5F8;
   --db-bg-white: #FFFFFF;
   --db-bg-card: #FFFFFF;
   --db-text: #1A2332;
   --db-text-secondary:#5A6A7E;
   --db-text-light: #8FA0B4;
   --db-text-on-dark: #FFFFFF;
-  --db-border: #E2E8F0;
+  --db-border: #DDE3EC;
   --db-border-light: #EDF2F7;
-  --db-shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
-  --db-shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
-  --db-shadow-lg: 0 10px 15px rgba(0,0,0,.08), 0 4px 6px rgba(0,0,0,.05);
-  --db-sidebar-width: 260px;
+  --db-shadow-sm: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --db-shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
+  --db-shadow-lg: 0 10px 30px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.06);
+  --db-sidebar-width: 264px;
   --db-navbar-height: 64px;
-  --db-border-radius: 4px;
-  --db-border-radius-lg: 8px;
+  --db-border-radius: 5px;
+  --db-border-radius-lg: 10px;
+  --db-font-body: "Barlow", sans-serif;
+  --db-font-display: "Barlow Condensed", sans-serif;
   --db-success: #22C55E;
   --db-warning: #F59E0B;
   --db-error: #EF4444;
   --db-info: #3B82F6;
+  --btp-brouillon: #6B7280;
+  --btp-en-controle: #B45309;
+  --btp-valide: #15803D;
+  --btp-refuse: #B91C1C;
+  --btp-vise: #1D4ED8;
 }
 *,
 *::before,
@@ -2458,15 +2465,12 @@ html,
 body {
   height: 100%;
   margin: 0;
-  font-family:
-    "Inter",
-    Roboto,
-    "Helvetica Neue",
-    sans-serif;
+  font-family: var(--db-font-body);
   font-size: 15px;
   background-color: var(--db-bg);
   color: var(--db-text);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .db-btn-primary {
   background-color: var(--db-orange) !important;
@@ -2587,16 +2591,34 @@ body {
   margin-bottom: 24px;
 }
 .page-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-family: var(--db-font-display);
+  font-size: 1.85rem;
+  font-weight: 800;
   color: var(--db-navy);
   margin: 0 0 4px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 .page-header p {
   color: var(--db-text-secondary);
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
+}
+.display-font {
+  font-family: var(--db-font-display) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.page-title {
+  font-family: var(--db-font-display) !important;
+  font-size: 1.85rem !important;
+  font-weight: 800 !important;
+  color: var(--db-text) !important;
+  margin: 0 0 2px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
 }
 .mat-mdc-table {
   border-radius: var(--db-border-radius-lg) !important;
@@ -2618,6 +2640,12 @@ body {
 }
 .mat-mdc-table .mat-mdc-row:hover {
   background-color: #F8FAFC !important;
+}
+select.field-select,
+select[class*=field-] {
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+  cursor: pointer;
 }
 ::-webkit-scrollbar {
   width: 6px;

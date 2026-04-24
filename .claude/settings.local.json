@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker build *)",
+      "Bash(minikube image *)",
+      "Bash(kubectl rollout restart *)",
+      "Bash(kubectl rollout status *)",
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)"
+    ]
+  }
+}

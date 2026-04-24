@@ -16,7 +16,11 @@ jobs:
         run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
         shell: powershell
 
-      - name: Build user-service jar with Docker Maven
+      # ─────────────────────────────────────────────
+      # BUILD JARS
+      # ─────────────────────────────────────────────
+
+      - name: Build user-service jar
         run: |
           docker run --rm `
             -v "${{ github.workspace }}\user-service:/app" `
@@ -25,7 +29,7 @@ jobs:
             mvn -B clean package -DskipTests
         shell: powershell
 
-      - name: Build api-gateway jar with Docker Maven
+      - name: Build api-gateway jar
         run: |
           docker run --rm `
             -v "${{ github.workspace }}\api-gateway:/app" `
@@ -34,23 +38,91 @@ jobs:
             mvn -B clean package -DskipTests
         shell: powershell
 
-      - name: Build and push user-service image
+      - name: Build plan-service jar
+        run: |
+          docker run --rm `
+            -v "${{ github.workspace }}\plan-service:/app" `
+            -w /app `
+            maven:3.9.9-eclipse-temurin-17 `
+            mvn -B clean package -DskipTests
+        shell: powershell
+
+      - name: Build notification-service jar
+        run: |
+          docker run --rm `
+            -v "${{ github.workspace }}\notification-service:/app" `
+            -w /app `
+            maven:3.9.9-eclipse-temurin-17 `
+            mvn -B clean package -DskipTests
+        shell: powershell
+
+      - name: Build affaire-service jar
+        run: |
+          docker run --rm `
+            -v "${{ github.workspace }}\affaire-service:/app" `
+            -w /app `
+            maven:3.9.9-eclipse-temurin-17 `
+            mvn -B clean package -DskipTests
+        shell: powershell
+
+      - name: Build controle-service jar
+        run: |
+          docker run --rm `
+            -v "${{ github.workspace }}\controle-service:/app" `
+            -w /app `
+            maven:3.9.9-eclipse-temurin-17 `
+            mvn -B clean package -DskipTests
+        shell: powershell
+
+      # ─────────────────────────────────────────────
+      # BUILD & PUSH IMAGES
+      # ─────────────────────────────────────────────
+
+      - name: Build and push user-service
         run: |
           docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }} ./user-service
           docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
         shell: powershell
 
-      - name: Build and push api-gateway image
+      - name: Build and push api-gateway
         run: |
           docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} ./api-gateway
           docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
         shell: powershell
 
-      - name: Build and push frontend image
+      - name: Build and push plan-service
+        run: |
+          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }} ./plan-service
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Build and push notification-service
+        run: |
+          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }} ./notification-service
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Build and push affaire-service
+        run: |
+          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }} ./affaire-service
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Build and push controle-service
+        run: |
+          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }} ./controle-service
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Build and push frontend
         run: |
           docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }} ./frontend-angular
           docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
         shell: powershell
+
+      # ─────────────────────────────────────────────
+      # DEPLOY TO KUBERNETES
+      # ─────────────────────────────────────────────
 
       - name: Check kubectl context
         run: kubectl config current-context
@@ -66,6 +138,30 @@ jobs:
         run: |
           kubectl set image deployment/api-gateway api-gateway=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} -n btp-app
           kubectl rollout status deployment/api-gateway -n btp-app --timeout=180s
+        shell: powershell
+
+      - name: Deploy plan-service
+        run: |
+          kubectl set image deployment/plan-service plan-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }} -n btp-app
+          kubectl rollout status deployment/plan-service -n btp-app --timeout=180s
+        shell: powershell
+
+      - name: Deploy notification-service
+        run: |
+          kubectl set image deployment/notification-service notification-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }} -n btp-app
+          kubectl rollout status deployment/notification-service -n btp-app --timeout=180s
+        shell: powershell
+
+      - name: Deploy affaire-service
+        run: |
+          kubectl set image deployment/affaire-service affaire-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }} -n btp-app
+          kubectl rollout status deployment/affaire-service -n btp-app --timeout=180s
+        shell: powershell
+
+      - name: Deploy controle-service
+        run: |
+          kubectl set image deployment/controle-service controle-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }} -n btp-app
+          kubectl rollout status deployment/controle-service -n btp-app --timeout=180s
         shell: powershell
 
       - name: Deploy frontend
