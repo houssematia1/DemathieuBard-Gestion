@@ -28,8 +28,14 @@ public class DataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        creerAdminParDefaut();
-        creerUtilisateursDemo();
+        try {
+            creerAdminParDefaut();
+            creerUtilisateursDemo();
+        } catch (Exception e) {
+            log.warn(">>> DataInitializer : impossible d'initialiser les données au démarrage. " +
+                     "MongoDB n'est peut-être pas encore prêt. " +
+                     "Les données seront créées au prochain redémarrage. Erreur : {}", e.getMessage());
+        }
     }
 
     private void creerAdminParDefaut() {
