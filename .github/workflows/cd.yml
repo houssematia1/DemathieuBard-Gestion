@@ -75,49 +75,149 @@ jobs:
         shell: powershell
 
       # ─────────────────────────────────────────────
-      # BUILD & PUSH IMAGES
+      # BUILD IMAGES
       # ─────────────────────────────────────────────
 
-      - name: Build and push user-service
-        run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }} ./user-service
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+      - name: Build user-service image
+        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }} ./user-service
         shell: powershell
 
-      - name: Build and push api-gateway
-        run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} ./api-gateway
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
+      - name: Build api-gateway image
+        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} ./api-gateway
         shell: powershell
 
-      - name: Build and push plan-service
-        run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }} ./plan-service
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }}
+      - name: Build plan-service image
+        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }} ./plan-service
         shell: powershell
 
-      - name: Build and push notification-service
-        run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }} ./notification-service
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
+      - name: Build notification-service image
+        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }} ./notification-service
         shell: powershell
 
-      - name: Build and push affaire-service
-        run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }} ./affaire-service
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }}
+      - name: Build affaire-service image
+        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }} ./affaire-service
         shell: powershell
 
-      - name: Build and push controle-service
-        run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }} ./controle-service
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }}
+      - name: Build controle-service image
+        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }} ./controle-service
         shell: powershell
 
-      - name: Build and push frontend
+      - name: Build frontend image
+        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }} ./frontend-angular
+        shell: powershell
+
+      # ─────────────────────────────────────────────
+      # TRIVY SECURITY SCAN
+      # (bloque le pipeline si vulnérabilité CRITICAL)
+      # ─────────────────────────────────────────────
+
+      - name: Scan user-service with Trivy
         run: |
-          docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }} ./frontend-angular
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
+          docker run --rm `
+            -v /var/run/docker.sock:/var/run/docker.sock `
+            aquasec/trivy:latest image `
+            --exit-code 1 `
+            --severity CRITICAL `
+            --no-progress `
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Scan api-gateway with Trivy
+        run: |
+          docker run --rm `
+            -v /var/run/docker.sock:/var/run/docker.sock `
+            aquasec/trivy:latest image `
+            --exit-code 1 `
+            --severity CRITICAL `
+            --no-progress `
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
+        shell: powershell
+
+      - name: Scan plan-service with Trivy
+        run: |
+          docker run --rm `
+            -v /var/run/docker.sock:/var/run/docker.sock `
+            aquasec/trivy:latest image `
+            --exit-code 1 `
+            --severity CRITICAL `
+            --no-progress `
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Scan notification-service with Trivy
+        run: |
+          docker run --rm `
+            -v /var/run/docker.sock:/var/run/docker.sock `
+            aquasec/trivy:latest image `
+            --exit-code 1 `
+            --severity CRITICAL `
+            --no-progress `
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Scan affaire-service with Trivy
+        run: |
+          docker run --rm `
+            -v /var/run/docker.sock:/var/run/docker.sock `
+            aquasec/trivy:latest image `
+            --exit-code 1 `
+            --severity CRITICAL `
+            --no-progress `
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Scan controle-service with Trivy
+        run: |
+          docker run --rm `
+            -v /var/run/docker.sock:/var/run/docker.sock `
+            aquasec/trivy:latest image `
+            --exit-code 1 `
+            --severity CRITICAL `
+            --no-progress `
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Scan frontend with Trivy
+        run: |
+          docker run --rm `
+            -v /var/run/docker.sock:/var/run/docker.sock `
+            aquasec/trivy:latest image `
+            --exit-code 1 `
+            --severity CRITICAL `
+            --no-progress `
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
+        shell: powershell
+
+      # ─────────────────────────────────────────────
+      # PUSH IMAGES (seulement si Trivy OK)
+      # ─────────────────────────────────────────────
+
+      - name: Push user-service
+        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Push api-gateway
+        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
+        shell: powershell
+
+      - name: Push plan-service
+        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Push notification-service
+        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Push affaire-service
+        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Push controle-service
+        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }}
+        shell: powershell
+
+      - name: Push frontend
+        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
         shell: powershell
 
       # ─────────────────────────────────────────────
