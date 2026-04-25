@@ -115,10 +115,13 @@ jobs:
         run: |
           docker run --rm `
             -v /var/run/docker.sock:/var/run/docker.sock `
+            -v "${{ github.workspace }}/.trivy-cache:/root/.cache/trivy" `
             aquasec/trivy:latest image `
             --exit-code 1 `
             --severity CRITICAL `
             --no-progress `
+            --timeout 10m `
+            --scanners vuln `
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
         shell: powershell
 
@@ -126,10 +129,13 @@ jobs:
         run: |
           docker run --rm `
             -v /var/run/docker.sock:/var/run/docker.sock `
+            -v "${{ github.workspace }}/.trivy-cache:/root/.cache/trivy" `
             aquasec/trivy:latest image `
             --exit-code 1 `
             --severity CRITICAL `
             --no-progress `
+            --timeout 10m `
+            --scanners vuln `
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
         shell: powershell
 
@@ -137,10 +143,13 @@ jobs:
         run: |
           docker run --rm `
             -v /var/run/docker.sock:/var/run/docker.sock `
+            -v "${{ github.workspace }}/.trivy-cache:/root/.cache/trivy" `
             aquasec/trivy:latest image `
             --exit-code 1 `
             --severity CRITICAL `
             --no-progress `
+            --timeout 10m `
+            --scanners vuln `
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }}
         shell: powershell
 
@@ -148,10 +157,13 @@ jobs:
         run: |
           docker run --rm `
             -v /var/run/docker.sock:/var/run/docker.sock `
+            -v "${{ github.workspace }}/.trivy-cache:/root/.cache/trivy" `
             aquasec/trivy:latest image `
             --exit-code 1 `
             --severity CRITICAL `
             --no-progress `
+            --timeout 10m `
+            --scanners vuln `
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
         shell: powershell
 
@@ -159,10 +171,13 @@ jobs:
         run: |
           docker run --rm `
             -v /var/run/docker.sock:/var/run/docker.sock `
+            -v "${{ github.workspace }}/.trivy-cache:/root/.cache/trivy" `
             aquasec/trivy:latest image `
             --exit-code 1 `
             --severity CRITICAL `
             --no-progress `
+            --timeout 10m `
+            --scanners vuln `
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }}
         shell: powershell
 
@@ -170,10 +185,13 @@ jobs:
         run: |
           docker run --rm `
             -v /var/run/docker.sock:/var/run/docker.sock `
+            -v "${{ github.workspace }}/.trivy-cache:/root/.cache/trivy" `
             aquasec/trivy:latest image `
             --exit-code 1 `
             --severity CRITICAL `
             --no-progress `
+            --timeout 10m `
+            --scanners vuln `
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }}
         shell: powershell
 
@@ -181,10 +199,13 @@ jobs:
         run: |
           docker run --rm `
             -v /var/run/docker.sock:/var/run/docker.sock `
+            -v "${{ github.workspace }}/.trivy-cache:/root/.cache/trivy" `
             aquasec/trivy:latest image `
             --exit-code 1 `
             --severity CRITICAL `
             --no-progress `
+            --timeout 10m `
+            --scanners vuln `
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
         shell: powershell
 
