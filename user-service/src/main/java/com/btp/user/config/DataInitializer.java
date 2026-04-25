@@ -1,271 +1,84 @@
-name: CD - Build Push Deploy Local
+package com.btp.user.config;
 
-on:
-  push:
-    branches: [ "main" ]
+import com.btp.user.model.Role;
+import com.btp.user.model.Utilisateur;
+import com.btp.user.repository.UtilisateurRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 
-jobs:
-  docker-and-deploy:
-    runs-on: [self-hosted, Windows, X64]
+import java.time.LocalDateTime;
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+/**
+ * Initialise les données de base au démarrage de l'application.
+ * Crée un compte ADMIN par défaut si aucun n'existe.
+ *
+ * Compte admin : admin@btp.fr / Admin@123
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class DataInitializer implements ApplicationRunner {
 
-      - name: Docker login
-        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
-        shell: powershell
+    private final UtilisateurRepository utilisateurRepository;
+    private final PasswordEncoder passwordEncoder;
 
-      # ─────────────────────────────────────────────
-      # BUILD JARS
-      # ─────────────────────────────────────────────
+    @Override
+    public void run(ApplicationArguments args) {
+        try {
+            creerAdminParDefaut();
+            creerUtilisateursDemo();
+        } catch (Exception e) {
+            log.warn(">>> DataInitializer : impossible d'initialiser les données au démarrage. " +
+                     "MongoDB n'est peut-être pas encore prêt. " +
+                     "Les données seront créées au prochain redémarrage. Erreur : {}", e.getMessage());
+        }
+    }
 
-      - name: Build user-service jar
-        run: |
-          docker run --rm `
-            -v "${{ github.workspace }}\user-service:/app" `
-            -w /app `
-            maven:3.9.9-eclipse-temurin-17 `
-            mvn -B clean package -DskipTests
-        shell: powershell
+    private void creerAdminParDefaut() {
+        if (!utilisateurRepository.existsByEmail("admin@btp.fr")) {
+            Utilisateur admin = Utilisateur.builder()
+                    .nom("Administrateur")
+                    .prenom("Système")
+                    .email("admin@btp.fr")
+                    .motDePasse(passwordEncoder.encode("Admin@123"))
+                    .role(Role.ADMIN)
+                    .actif(true)
+                    .dateCreation(LocalDateTime.now())
+                    .build();
+            utilisateurRepository.save(admin);
+            log.info(">>> Compte ADMIN créé : admin@btp.fr / Admin@123");
+        }
+    }
 
-      - name: Build api-gateway jar
-        run: |
-          docker run --rm `
-            -v "${{ github.workspace }}\api-gateway:/app" `
-            -w /app `
-            maven:3.9.9-eclipse-temurin-17 `
-            mvn -B clean package -DskipTests
-        shell: powershell
+    /**
+     * Crée des utilisateurs de démonstration pour faciliter les tests.
+     */
+    private void creerUtilisateursDemo() {
+        creerSiAbsent("chef.projet@btp.fr", "Martin", "Sophie", Role.CHEF_PROJET);
+        creerSiAbsent("projeteur@btp.fr", "Bernard", "Lucas", Role.PROJETEUR);
+        creerSiAbsent("emetteur@btp.fr", "Leblanc", "Emma", Role.EMETTEUR);
+        creerSiAbsent("controleur.interne@btp.fr", "Moreau", "Pierre", Role.CONTROLEUR_INTERNE);
+        creerSiAbsent("controleur.externe@btp.fr", "Petit", "Marie", Role.CONTROLEUR_EXTERNE);
+        creerSiAbsent("responsable.visa@btp.fr", "Durand", "Antoine", Role.RESPONSABLE_VISA);
+    }
 
-      - name: Build plan-service jar
-        run: |
-          docker run --rm `
-            -v "${{ github.workspace }}\plan-service:/app" `
-            -w /app `
-            maven:3.9.9-eclipse-temurin-17 `
-            mvn -B clean package -DskipTests
-        shell: powershell
-
-      - name: Build notification-service jar
-        run: |
-          docker run --rm `
-            -v "${{ github.workspace }}\notification-service:/app" `
-            -w /app `
-            maven:3.9.9-eclipse-temurin-17 `
-            mvn -B clean package -DskipTests
-        shell: powershell
-
-      - name: Build affaire-service jar
-        run: |
-          docker run --rm `
-            -v "${{ github.workspace }}\affaire-service:/app" `
-            -w /app `
-            maven:3.9.9-eclipse-temurin-17 `
-            mvn -B clean package -DskipTests
-        shell: powershell
-
-      - name: Build controle-service jar
-        run: |
-          docker run --rm `
-            -v "${{ github.workspace }}\controle-service:/app" `
-            -w /app `
-            maven:3.9.9-eclipse-temurin-17 `
-            mvn -B clean package -DskipTests
-        shell: powershell
-
-      # ─────────────────────────────────────────────
-      # BUILD IMAGES
-      # ─────────────────────────────────────────────
-
-      - name: Build user-service image
-        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }} ./user-service
-        shell: powershell
-
-      - name: Build api-gateway image
-        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} ./api-gateway
-        shell: powershell
-
-      - name: Build plan-service image
-        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }} ./plan-service
-        shell: powershell
-
-      - name: Build notification-service image
-        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }} ./notification-service
-        shell: powershell
-
-      - name: Build affaire-service image
-        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }} ./affaire-service
-        shell: powershell
-
-      - name: Build controle-service image
-        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }} ./controle-service
-        shell: powershell
-
-      - name: Build frontend image
-        run: docker build -t docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }} ./frontend-angular
-        shell: powershell
-
-      # ─────────────────────────────────────────────
-      # TRIVY SECURITY SCAN
-      # (bloque le pipeline si vulnérabilité CRITICAL)
-      # ─────────────────────────────────────────────
-
-      - name: Scan user-service with Trivy
-        run: |
-          docker run --rm `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image `
-            --exit-code 1 `
-            --severity CRITICAL `
-            --no-progress `
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Scan api-gateway with Trivy
-        run: |
-          docker run --rm `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image `
-            --exit-code 1 `
-            --severity CRITICAL `
-            --no-progress `
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
-        shell: powershell
-
-      - name: Scan plan-service with Trivy
-        run: |
-          docker run --rm `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image `
-            --exit-code 1 `
-            --severity CRITICAL `
-            --no-progress `
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Scan notification-service with Trivy
-        run: |
-          docker run --rm `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image `
-            --exit-code 1 `
-            --severity CRITICAL `
-            --no-progress `
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Scan affaire-service with Trivy
-        run: |
-          docker run --rm `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image `
-            --exit-code 1 `
-            --severity CRITICAL `
-            --no-progress `
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Scan controle-service with Trivy
-        run: |
-          docker run --rm `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image `
-            --exit-code 1 `
-            --severity CRITICAL `
-            --no-progress `
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Scan frontend with Trivy
-        run: |
-          docker run --rm `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image `
-            --exit-code 1 `
-            --severity CRITICAL `
-            --no-progress `
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
-        shell: powershell
-
-      # ─────────────────────────────────────────────
-      # PUSH IMAGES (seulement si Trivy OK)
-      # ─────────────────────────────────────────────
-
-      - name: Push user-service
-        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Push api-gateway
-        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }}
-        shell: powershell
-
-      - name: Push plan-service
-        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Push notification-service
-        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Push affaire-service
-        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Push controle-service
-        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }}
-        shell: powershell
-
-      - name: Push frontend
-        run: docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
-        shell: powershell
-
-      # ─────────────────────────────────────────────
-      # DEPLOY TO KUBERNETES
-      # ─────────────────────────────────────────────
-
-      - name: Check kubectl context
-        run: kubectl config current-context
-        shell: powershell
-
-      - name: Deploy user-service
-        run: |
-          kubectl set image deployment/user-service user-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.sha }} -n btp-app
-          kubectl rollout status deployment/user-service -n btp-app --timeout=180s
-        shell: powershell
-
-      - name: Deploy api-gateway
-        run: |
-          kubectl set image deployment/api-gateway api-gateway=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:${{ github.sha }} -n btp-app
-          kubectl rollout status deployment/api-gateway -n btp-app --timeout=180s
-        shell: powershell
-
-      - name: Deploy plan-service
-        run: |
-          kubectl set image deployment/plan-service plan-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/plan-service:${{ github.sha }} -n btp-app
-          kubectl rollout status deployment/plan-service -n btp-app --timeout=180s
-        shell: powershell
-
-      - name: Deploy notification-service
-        run: |
-          kubectl set image deployment/notification-service notification-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/notification-service:${{ github.sha }} -n btp-app
-          kubectl rollout status deployment/notification-service -n btp-app --timeout=180s
-        shell: powershell
-
-      - name: Deploy affaire-service
-        run: |
-          kubectl set image deployment/affaire-service affaire-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/affaire-service:${{ github.sha }} -n btp-app
-          kubectl rollout status deployment/affaire-service -n btp-app --timeout=180s
-        shell: powershell
-
-      - name: Deploy controle-service
-        run: |
-          kubectl set image deployment/controle-service controle-service=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/controle-service:${{ github.sha }} -n btp-app
-          kubectl rollout status deployment/controle-service -n btp-app --timeout=180s
-        shell: powershell
-
-      - name: Deploy frontend
-        run: |
-          kubectl set image deployment/frontend frontend=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }} -n btp-app
-          kubectl rollout status deployment/frontend -n btp-app --timeout=180s
-        shell: powershell
+    private void creerSiAbsent(String email, String nom, String prenom, Role role) {
+        if (!utilisateurRepository.existsByEmail(email)) {
+            Utilisateur u = Utilisateur.builder()
+                    .nom(nom)
+                    .prenom(prenom)
+                    .email(email)
+                    .motDePasse(passwordEncoder.encode("Demo@1234"))
+                    .role(role)
+                    .actif(true)
+                    .dateCreation(LocalDateTime.now())
+                    .build();
+            utilisateurRepository.save(u);
+            log.info(">>> Utilisateur demo créé: {} [{}]", email, role);
+        }
+    }
+}
