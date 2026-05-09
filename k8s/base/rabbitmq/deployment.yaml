@@ -12,13 +12,21 @@ spec:
     metadata:
       labels:
         app: rabbitmq
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "15692"
     spec:
       containers:
         - name: rabbitmq
           image: rabbitmq:3.12-management
           ports:
             - containerPort: 5672
+              name: amqp
             - containerPort: 15672
+              name: management
+            - containerPort: 15692
+              name: prometheus
           env:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
@@ -30,3 +38,31 @@ spec:
                 secretKeyRef:
                   name: rabbitmq-secret
                   key: password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 15
+            failureThreshold: 3
+          volumeMounts:
+            - name: enabled-plugins
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
+      volumes:
+        - name: enabled-plugins
+          configMap:
+            name: rabbitmq-enabled-plugins

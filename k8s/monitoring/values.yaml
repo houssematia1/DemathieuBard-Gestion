@@ -1,0 +1,249 @@
+# ==============================================================================
+# Configuration kube-prometheus-stack pour PFE BTP - Docker Desktop
+# Namespace cible : btp-app
+# ==============================================================================
+
+# === ALERTMANAGER : désactivé pour économiser la RAM ===
+# (à activer en phase "Résilience" si besoin d'alertes par mail/Slack)
+alertmanager:
+  enabled: false
+
+# ==============================================================================
+# PROMETHEUS OPERATOR
+# ==============================================================================
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  admissionWebhooks:
+    patch:
+      resources:
+        requests:
+          cpu: 20m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+# ==============================================================================
+# PROMETHEUS
+# ==============================================================================
+prometheus:
+  prometheusSpec:
+    # Rétention courte pour Docker Desktop
+    retention: 7d
+    retentionSize: 5GB
+
+    # Ressources réduites pour environnement local
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+    # Stockage en emptyDir (pas de PVC sur Docker Desktop)
+    storageSpec: {}
+
+    # IMPORTANT : permet de scraper les pods avec annotations prometheus.io/*
+    # même s'ils n'ont pas de ServiceMonitor explicite
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+
+    # Scrape additionnel : tes microservices Spring Boot via annotations
+    additionalScrapeConfigs:
+      - job_name: 'spring-boot-services'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - btp-app
+        relabel_configs:
+          # Ne scraper que les pods avec annotation prometheus.io/scrape=true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          # Path personnalisé via annotation prometheus.io/path
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          # Port personnalisé via annotation prometheus.io/port
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          # Labels enrichis pour le tri dans Grafana
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: app
+          # Dashboards Grafana (JVM Micrometer, Spring Boot Stats) filtrent
+          # sur le label `application` — on le dérive du label `app` du pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: application
+          # Cohérence avec les dashboards K8s (cluster="$cluster")
+          - target_label: cluster
+            replacement: docker-desktop
+
+  # Exposer Prometheus en NodePort
+  service:
+    type: NodePort
+    nodePort: 30090
+
+# ==============================================================================
+# GRAFANA
+# ==============================================================================
+grafana:
+  enabled: true
+
+  # Mot de passe admin (à mettre en Secret en phase "Audit secrets K8s")
+  adminPassword: EXDX5GDPCqxTbzSpAiam
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+
+  # Exposer Grafana en NodePort
+  service:
+    type: NodePort
+    nodePort: 30030
+
+  # Dashboards K8s par défaut (livrés avec le chart)
+  defaultDashboardsEnabled: true
+
+  # Dashboards additionnels téléchargés automatiquement depuis grafana.com
+  dashboards:
+    default:
+      jvm-micrometer:
+        gnetId: 4701
+        revision: 9
+        datasource: Prometheus
+      spring-boot-stats:
+        gnetId: 11378
+        revision: 1
+        datasource: Prometheus
+      mongodb-overview:
+        gnetId: 7353
+        revision: 5
+        datasource: Prometheus
+      rabbitmq-overview:
+        gnetId: 10991
+        revision: 12
+        datasource: Prometheus
+
+  # Provider de dashboards (chemin où Grafana cherche les fichiers JSON)
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+# ==============================================================================
+# KUBE-STATE-METRICS (état des objets K8s : deployments, pods, etc.)
+# ==============================================================================
+kube-state-metrics:
+  enabled: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  # Dashboards officiels filtrent sur cluster="$cluster" — injection du label
+  prometheus:
+    monitor:
+      relabelings:
+        - targetLabel: cluster
+          replacement: docker-desktop
+
+# ==============================================================================
+# NODE EXPORTER : DÉSACTIVÉ (incompatible Docker Desktop / WSL2)
+# ==============================================================================
+# Le DaemonSet plante avec "path / is not a shared or slave mount"
+# car Docker Desktop n'expose pas le rootfs avec propagation partagée.
+# À réactiver sur cluster cloud cible (EKS/AKS/k3s).
+prometheus-node-exporter:
+  enabled: false
+
+nodeExporter:
+  enabled: false
+
+# ==============================================================================
+# COMPOSANTS DU CONTROL-PLANE : DÉSACTIVÉS
+# ==============================================================================
+# Sur Docker Desktop, ces composants tournent dans une VM interne et
+# ne sont pas exposés au scraping Prometheus.
+kubeApiServer:
+  enabled: false
+
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeProxy:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubelet:
+  enabled: true
+  serviceMonitor:
+    # cAdvisor reste activé : c'est lui qui donne les métriques par conteneur
+    cAdvisor: true
+    probes: true
+    resource: true
+    # K8s >= 1.18 : v1alpha1 supprimé, chemin actuel = /metrics/resource
+    resourcePath: /metrics/resource
+    # Les dashboards officiels filtrent sur `cluster="$cluster"` — on injecte
+    # un label statique sur tous les endpoints kubelet
+    relabelings:
+      - sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+      - targetLabel: cluster
+        replacement: docker-desktop
+    cAdvisorRelabelings:
+      - sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+      - targetLabel: cluster
+        replacement: docker-desktop
+    probesRelabelings:
+      - sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+      - targetLabel: cluster
+        replacement: docker-desktop
+    resourceRelabelings:
+      - sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+      - targetLabel: cluster
+        replacement: docker-desktop
+
