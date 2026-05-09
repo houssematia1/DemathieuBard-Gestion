@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: user-service
   namespace: btp-app
+  labels:
+    app: user-service
 spec:
   replicas: 1
   selector:
@@ -12,6 +14,10 @@ spec:
     metadata:
       labels:
         app: user-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8084"
     spec:
       containers:
         - name: user-service
@@ -26,23 +32,33 @@ spec:
             - secretRef:
                 name: user-service-secret
 
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://$(MONGODB_USERNAME):$(MONGODB_PASSWORD)@$(MONGODB_HOST):$(MONGODB_PORT)/$(MONGODB_DATABASE)?authSource=$(MONGODB_AUTHSOURCE)"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: JWT_SECRET
+
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            failureThreshold: 30
+            periodSeconds: 5
+
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8084
-            initialDelaySeconds: 20
             periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 6
 
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8084
-            initialDelaySeconds: 40
-            periodSeconds: 20
-            timeoutSeconds: 3
-            failureThreshold: 3
+            periodSeconds: 15
 
           resources:
             requests:

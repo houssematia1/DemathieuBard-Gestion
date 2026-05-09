@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: plan-service
   namespace: btp-app
+  labels:
+    app: plan-service
 spec:
   replicas: 1
   selector:
@@ -12,6 +14,10 @@ spec:
     metadata:
       labels:
         app: plan-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8082"
     spec:
       containers:
         - name: plan-service
@@ -19,10 +25,16 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8082
+
           envFrom:
             - configMapRef:
                 name: plan-service-config
+            - secretRef:
+                name: plan-service-secret
+
           env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://$(MONGODB_USERNAME):$(MONGODB_PASSWORD)@$(MONGODB_HOST):$(MONGODB_PORT)/$(MONGODB_DATABASE)?authSource=$(MONGODB_AUTHSOURCE)"
             - name: SPRING_RABBITMQ_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -37,22 +49,39 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: jwt-secret
-                  key: jwt-secret
+                  key: JWT_SECRET
+
           volumeMounts:
             - name: plan-uploads
               mountPath: /app/uploads
+
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            failureThreshold: 30
+            periodSeconds: 5
+
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8082
-            initialDelaySeconds: 30
             periodSeconds: 10
+
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8082
-            initialDelaySeconds: 45
-            periodSeconds: 20
+            periodSeconds: 15
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
       volumes:
         - name: plan-uploads
           persistentVolumeClaim:

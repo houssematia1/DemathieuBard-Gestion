@@ -37,3 +37,48 @@ Thumbs.db
 # Spring Boot local overrides (ne pas committer les configs locales avec secrets)
 **/application-local.yml
 **/application-local.properties
+
+# =====================================================
+# DevSecOps — Audit secrets (Phase 1)
+# =====================================================
+
+# Secrets K8s en clair — NE JAMAIS committer
+# Les SealedSecrets (chiffrés) sont autorisés via l'exception ci-dessous
+**/secret.yaml
+**/*-secret.yaml
+**/secrets/*.yaml
+**/secrets/*.yml
+
+# Exception : SealedSecrets (chiffrés, safe à committer)
+!**/sealed-*.yaml
+!**/*-sealed.yaml
+!**/sealedsecret-*.yaml
+
+# Clés cryptographiques
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Fichiers de credentials génériques
+*credentials*
+*.credentials
+.htpasswd
+
+# Fichiers locaux de travail (audit, rotation)
+secrets.local.txt
+secrets.local.*
+audit-secrets-*.local.*
+.kubeseal-cert.pem
+
+# Tokens et fichiers d'auth cloud
+.aws/
+.azure/
+gcp-key.json
+service-account*.json

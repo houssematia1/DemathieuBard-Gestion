@@ -4,8 +4,22 @@ metadata:
   name: plan-service-config
   namespace: btp-app
 data:
-  SPRING_DATA_MONGODB_URI: mongodb://admin:btppassword@mongodb:27017/btp_plan?authSource=admin
+  SPRING_APPLICATION_NAME: plan-service
+  SERVER_PORT: "8082"
+
+  MONGODB_HOST: mongodb
+  MONGODB_PORT: "27017"
+  MONGODB_DATABASE: btp_plan
+  MONGODB_AUTHSOURCE: admin
+
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+
   SPRING_RABBITMQ_HOST: rabbitmq
   SPRING_RABBITMQ_PORT: "5672"
-  UPLOAD_DIR: /app/uploads  
+
+  UPLOAD_DIR: /app/uploads
+
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
