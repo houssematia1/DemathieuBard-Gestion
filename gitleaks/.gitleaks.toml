@@ -1,0 +1,50 @@
+# =============================================================================
+# Configuration gitleaks custom — Projet PFE BTP (DevSecOps)
+# =============================================================================
+# Cette config ETEND le ruleset par defaut de gitleaks (useDefault = true) et
+# y ajoute une allowlist de faux positifs propres a ce projet.
+#
+# Utilisation :
+#   gitleaks git . -c gitleaks/.gitleaks.toml --report-format json --report-path gitleaks/scan-history.json
+#   gitleaks dir . -c gitleaks/.gitleaks.toml
+# En CI : variable d'env GITLEAKS_CONFIG=gitleaks/.gitleaks.toml
+# =============================================================================
+
+title = "BTP PFE - gitleaks custom config"
+
+[extend]
+# On garde TOUTES les regles par defaut de gitleaks (AWS, GCP, JWT, generic-api-key, etc.)
+# et on ne fait qu'AJOUTER des exceptions ci-dessous. On ne desactive aucune regle.
+useDefault = true
+
+[allowlist]
+description = "Faux positifs specifiques au projet (chiffres Sealed Secrets + artefacts de scan)"
+
+# --- Pourquoi ces chemins sont allowlistes -----------------------------------
+#
+# 1) k8s/base/**/sealed-*.yaml  (et shared/sealed-jwt-secret.yaml)
+#    Ce sont des objets SealedSecret de Bitnami Sealed Secrets. Le bloc
+#    `encryptedData` contient des blobs base64 qui sont le resultat d'un
+#    CHIFFREMENT ASYMETRIQUE (RSA + AES, scheme hybride) realise avec la cle
+#    PUBLIQUE du cluster. Ce base64 :
+#      - a une haute entropie -> declenche la regle `generic-api-key` de gitleaks
+#      - n'est PAS un secret exploitable : il est INUTILE sans la cle privee RSA
+#        qui ne vit que dans le controller (namespace kube-system) et ne quitte
+#        jamais le cluster.
+#    Committer ces fichiers est precisement le but de Sealed Secrets : du secret
+#    chiffre, safe a versionner. Les flagger serait un faux positif par design.
+#
+# 2) gitleaks/**
+#    Dossier des rapports et de la config de gitleaks. Les rapports BRUTS
+#    (scan-history.json, *-console.txt, *.sarif) contiennent les secrets en clair
+#    detectes dans l'historique : ils sont gitignores (voir gitleaks/.gitignore)
+#    et ne doivent jamais etre commites. On allowliste le chemin pour eviter que
+#    gitleaks se detecte lui-meme sur ses propres rapports lors d'un scan local
+#    du working tree (`gitleaks dir .`).
+# -----------------------------------------------------------------------------
+
+paths = [
+  '''sealed-.*\.yaml$''',
+  '''k8s/base/.*/sealed-.*\.yaml$''',
+  '''^gitleaks/.*''',
+]

@@ -1,0 +1,30 @@
+RESUME REDACTE - gitleaks scan historique (post-allowlist/ignore)
+======================================================================
+Scope : 51 commits, ~326 MB. Config: gitleaks/.gitleaks.toml + .gitleaksignore
+Total brut : 27 findings
+  -  9 faux positifs (sealed-*.yaml, base64 RSA) -> allowlistes (.gitleaks.toml)
+  -  7 placeholders JWT rotes                    -> ignores (.gitleaksignore)
+  - 11 RESTANTS = credentials ACTIFS (ci-dessous)
+NB: aucune VALEUR de secret n'est ecrite ici (redaction volontaire).
+
+TYPE                      STATUT                FICHIER (historique)                        COMMIT    
+------------------------------------------------------------------------------------------------------
+GRAFANA_adminPassword     ACTIF a HEAD          k8s/monitoring/values.yaml                  6c885f6c  
+JWT_SECRET                ACTIF (historique)    k8s/base/shared/jwt-secret.yaml             3c044077  
+MONGODB_ROOT_PASSWORD     ACTIF (historique)    k8s/base/affaire-service/secret.yaml        3c044077  
+MONGODB_ROOT_PASSWORD     ACTIF (historique)    k8s/base/controle-service/secret.yaml       3c044077  
+MONGODB_ROOT_PASSWORD     ACTIF (historique)    k8s/base/mongodb/secret.yaml                3c044077  
+MONGODB_ROOT_PASSWORD     ACTIF (historique)    k8s/base/notification-service/secret.yaml   3c044077  
+MONGODB_ROOT_PASSWORD     ACTIF (historique)    k8s/base/plan-service/secret.yaml           3c044077  
+MONGODB_ROOT_PASSWORD     ACTIF (historique)    k8s/base/user-service/secret.yaml           3c044077  
+RABBITMQ_PASSWORD         ACTIF (historique)    k8s/base/controle-service/secret.yaml       3c044077  
+RABBITMQ_PASSWORD         ACTIF (historique)    k8s/base/notification-service/secret.yaml   3c044077  
+RABBITMQ_PASSWORD         ACTIF (historique)    k8s/base/rabbitmq/secret.yaml               3c044077  
+
+ACTIONS REQUISES :
+  1. Rotater : MongoDB root, RabbitMQ, JWT signing key, Grafana admin.
+  2. Regenerer les SealedSecrets concernes (kubeseal) + rollout restart.
+  3. Grafana : k8s/monitoring/values.yaml a adminPassword EN CLAIR a HEAD (ligne 115)
+     -> migrer vers Secret/SealedSecret, retirer la valeur en clair.
+  4. Optionnel : purge historique (git filter-repo / BFG).
+  5. Apres rotation : decommenter les fingerprints correspondants dans .gitleaksignore.

@@ -1,0 +1,57 @@
+# =============================================================================
+# .gitleaksignore — findings acceptes/ignores pour gitleaks
+# =============================================================================
+# Format d'une ligne : <commit>:<file>:<rule>:<startLine>  (= "Fingerprint")
+# Une entree ici neutralise UNIQUEMENT ce finding precis (ce secret, ce fichier,
+# cette ligne, ce commit). Cela ne masque pas d'autres occurrences.
+#
+# REGLE D'OR : on n'ignore QUE des secrets MORTS (rotes / placeholders).
+# Un secret encore ACTIF ne doit JAMAIS etre ignore : il doit etre ROTE
+# (puis, idealement, l'historique purge). Voir le bloc "A NE PAS IGNORER" plus bas.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CONFIRMES ROTES / MORTS — placeholder JWT par defaut
+# Valeur : "btp-secret-key-for-jwt-signing-must-be-at-least-256-bits-long-for-hs256"
+# C'est une cle de signature JWT PLACEHOLDER (valeur d'exemple, jamais un vrai
+# secret de prod). Elle a ete remplacee par la vraie cle au commit 3c044077
+# ("rotate credentials"). Cote K8s elle n'est plus utilisee. Elle ne subsiste
+# que dans .env.example (template) et d'anciens secret.yaml supprimes depuis.
+# -> Findings morts, ignores sans risque.
+# -----------------------------------------------------------------------------
+0ef0190517812d8279edbe1dc776fc533ec68fce:k8s/base/api-gateway/secret.yaml:generic-api-key:8
+0ef0190517812d8279edbe1dc776fc533ec68fce:k8s/base/controle-service/secret.yaml:generic-api-key:14
+0ef0190517812d8279edbe1dc776fc533ec68fce:k8s/base/affaire-service/secret.yaml:generic-api-key:10
+0ef0190517812d8279edbe1dc776fc533ec68fce:k8s/base/notification-service/secret.yaml:generic-api-key:10
+0ef0190517812d8279edbe1dc776fc533ec68fce:k8s/base/shared/jwt-secret.yaml:generic-api-key:8
+0ef0190517812d8279edbe1dc776fc533ec68fce:k8s/base/user-service/secret.yaml:generic-api-key:8
+20a1e8d5621f4676e0cbd251a8911ca332fa5850:.env.example:generic-api-key:9
+
+# =============================================================================
+# A NE PAS IGNORER TANT QUE NON ROTE  (volontairement laisse en commentaire)
+# =============================================================================
+# Les findings ci-dessous correspondent a des credentials qui etaient ENCORE
+# ACTIFS dans le cluster (verifie en Phases gamma/epsilon, 2026-06-06) :
+#   - Mongo  : mot de passe root (commit 3c044077, k8s/base/*/secret.yaml)
+#   - RabbitMQ : mot de passe (commit 3c044077)
+#   - JWT    : cle de signature reelle (commit 3c044077, shared/jwt-secret.yaml)
+#   - Grafana: adminPassword — ENCORE EN CLAIR A HEAD dans k8s/monitoring/values.yaml:115
+#
+# Les ignorer reviendrait a CACHER des secrets vivants -> interdit.
+# Procedure correcte : (1) rotater chaque credential, (2) regenerer les
+# SealedSecrets concernes, (3) pour Grafana migrer values.yaml vers un Secret
+# (ou SealedSecret) + supprimer la valeur en clair, (4) idealement purger
+# l'historique (git filter-repo/BFG), (5) SEULEMENT ensuite decommenter ces
+# lignes si l'on conserve l'historique.
+#
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/mongodb/secret.yaml:generic-api-key:9
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/affaire-service/secret.yaml:generic-api-key:9
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/controle-service/secret.yaml:generic-api-key:9
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/plan-service/secret.yaml:generic-api-key:9
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/notification-service/secret.yaml:generic-api-key:9
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/user-service/secret.yaml:generic-api-key:9
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/rabbitmq/secret.yaml:generic-api-key:9
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/controle-service/secret.yaml:generic-api-key:12
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/notification-service/secret.yaml:generic-api-key:12
+# 3c0440774e2e4b4db2cbcbc7146d42e9e2bbc19a:k8s/base/shared/jwt-secret.yaml:generic-api-key:8
+# 6c885f6ce00e57c07c82dcea0c620b8706339c4a:k8s/monitoring/values.yaml:generic-api-key:115

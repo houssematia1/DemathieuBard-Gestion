@@ -1,0 +1,11 @@
+# Rapports BRUTS de gitleaks : contiennent les secrets EN CLAIR detectes.
+# NE JAMAIS committer — sinon on re-introduit la fuite qu'on cherche a detecter.
+scan-history.json
+*-console.txt
+*.sarif
+_fp_*.txt
+
+# Ce qui RESTE committable dans ce dossier :
+#   .gitleaks.toml        (config, pas de secret)
+#   scan-summary.txt      (resume REDACTE, pas de valeur de secret)
+#   PHASE-ZETA-REPORT.md  (rapport REDACTE)
