@@ -54,6 +54,11 @@ Thumbs.db
 !**/*-sealed.yaml
 !**/sealedsecret-*.yaml
 
+# Backup clé maître Sealed Secrets — CLÉ PRIVÉE en clair, NE JAMAIS committer
+# (doit venir APRÈS la négation !**/sealed-*.yaml ci-dessus pour la neutraliser)
+*master-key*.local.yaml
+sealed-secrets-master-key.local.yaml
+
 # Clés cryptographiques
 *.key
 *.pem
