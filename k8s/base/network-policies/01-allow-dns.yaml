@@ -1,0 +1,37 @@
+# ==============================================================================
+# 01 — ALLOW DNS EGRESS pour TOUS les pods de btp-app
+# ==============================================================================
+# Après le default-deny egress, AUCUN pod ne peut résoudre un nom DNS.
+# Or tout dans ce cluster passe par des noms : "mongodb", "eureka-server",
+# "rabbitmq", "api-gateway"... => sans cette règle, TOUT casse (UnknownHost).
+#
+# On autorise donc l'egress de tous les pods (podSelector: {}) vers CoreDNS
+# (kube-dns) dans kube-system, sur UDP 53 ET TCP 53 (TCP requis pour les
+# réponses > 512 octets / DNS-over-TCP).
+#
+# Labels ciblés (vérifiés / standards K8s) :
+#   - namespace kube-system : label automatique kubernetes.io/metadata.name
+#   - pods CoreDNS          : label k8s-app=kube-dns (label par défaut CoreDNS)
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: btp-app
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

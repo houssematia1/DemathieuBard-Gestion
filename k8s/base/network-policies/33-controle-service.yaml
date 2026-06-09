@@ -1,0 +1,64 @@
+# ==============================================================================
+# controle-service — port app/metrics 8083
+# ==============================================================================
+# INGRESS : api-gateway (routage) + Prometheus (metrics) sur 8083.
+# EGRESS  :
+#   - eureka:8761
+#   - mongodb:27017
+#   - rabbitmq:5672
+#   - plan-service:8082  (appel REST POST /api/plans/{id}/statut via lb://)
+#   DNS via policy globale 01.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: controle-service
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: controle-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8083
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: eureka-server
+      ports:
+        - protocol: TCP
+          port: 8761
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+    - to:
+        - podSelector:
+            matchLabels:
+              app: rabbitmq
+      ports:
+        - protocol: TCP
+          port: 5672
+    # Appel REST inter-service vers plan-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: plan-service
+      ports:
+        - protocol: TCP
+          port: 8082

@@ -1,0 +1,47 @@
+# ==============================================================================
+# rabbitmq — port AMQP 5672, port metrics Prometheus 15692
+# ==============================================================================
+# INGRESS :
+#   - AMQP (5672) depuis les producteurs/consommateurs réels :
+#     plan-service, controle-service, notification-service.
+#   - metrics (15692) depuis Prometheus (ns monitoring).
+# EGRESS  : DNS uniquement (policy globale 01).
+#
+# Le port management UI 15672 n'est ouvert à PERSONNE ici (aucun flux prouvé) :
+# si tu veux y accéder, fais-le via port-forward (kubectl), pas via une règle
+# réseau permanente.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: rabbitmq
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # AMQP depuis les services qui publient/consomment
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - plan-service
+                  - controle-service
+                  - notification-service
+      ports:
+        - protocol: TCP
+          port: 5672
+    # Scraping Prometheus du plugin rabbitmq_prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 15692

@@ -1,0 +1,23 @@
+# ==============================================================================
+# 00 — DEFAULT DENY (ingress + egress) pour TOUT le namespace btp-app
+# ==============================================================================
+# podSelector: {}  => sélectionne TOUS les pods du namespace.
+# policyTypes Ingress+Egress sans aucune règle => tout trafic refusé par défaut.
+#
+# À partir d'ici, plus rien ne passe SAUF ce que les policies suivantes
+# autorisent explicitement (modèle allowlist). C'est la base du least-privilege
+# réseau : on part de zéro, on ouvre au cas par cas, prouvé à l'étape 0.
+#
+# ATTENTION : sans la policy DNS (01) qui suit, la résolution de noms casse
+# immédiatement. Les deux doivent être appliquées ensemble.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: btp-app
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

@@ -1,0 +1,45 @@
+# ==============================================================================
+# user-service (auth + users) — port app/metrics 8084
+# ==============================================================================
+# INGRESS : api-gateway (routage) + Prometheus (metrics) sur 8084.
+# EGRESS  : eureka:8761 + mongodb:27017. DNS via policy globale 01.
+# Pas de RabbitMQ (ne publie/consomme aucun message).
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-service
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: user-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8084
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: eureka-server
+      ports:
+        - protocol: TCP
+          port: 8761
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017

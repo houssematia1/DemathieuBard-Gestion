@@ -1,0 +1,57 @@
+# ==============================================================================
+# notification-service — port app/metrics 8085
+# ==============================================================================
+# INGRESS : api-gateway (routage) + Prometheus (metrics) sur 8085.
+# EGRESS  : eureka:8761 + mongodb:27017 + rabbitmq:5672. DNS via policy 01.
+#
+# NB MAILHOG : le configmap pointe vers mailhog:1025, MAIS aucun pod/Service
+# mailhog n'existe dans le namespace btp-app (présent uniquement dans
+# docker-compose). Aucune règle egress mail n'est donc créée : il n'y a pas de
+# cible. Si tu déploies mailhog (ou un vrai SMTP) plus tard, ajoute ici un
+# egress vers app=mailhog:1025 (ou vers l'IP/CIDR du SMTP externe via ipBlock).
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notification-service
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: notification-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8085
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: eureka-server
+      ports:
+        - protocol: TCP
+          port: 8761
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+    - to:
+        - podSelector:
+            matchLabels:
+              app: rabbitmq
+      ports:
+        - protocol: TCP
+          port: 5672

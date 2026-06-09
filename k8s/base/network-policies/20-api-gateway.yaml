@@ -1,0 +1,101 @@
+# ==============================================================================
+# api-gateway (Spring Cloud Gateway) — point d'entrée des API
+# ==============================================================================
+# INGRESS :
+#   - depuis ingress-nginx (path /api de l'Ingress)            -> :8080
+#   - depuis le frontend (nginx proxy_pass /api)               -> :8080
+#   - depuis Prometheus (ns monitoring) pour /actuator/prometheus -> :8080
+# EGRESS :
+#   - vers eureka-server:8761 (register + fetch registry)
+#   - vers chaque microservice sur son port applicatif (routage lb://)
+#   - DNS via policy globale 01
+#
+# Le port metrics du gateway = port applicatif 8080 (pas de management.port séparé),
+# donc l'ingress Prometheus réutilise 8080.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Entrée nord-sud via le contrôleur Ingress
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Proxy depuis le frontend
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Scraping Prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Eureka : enregistrement + récupération du registre
+    - to:
+        - podSelector:
+            matchLabels:
+              app: eureka-server
+      ports:
+        - protocol: TCP
+          port: 8761
+    # Routage vers user-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 8084
+    # Routage vers plan-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: plan-service
+      ports:
+        - protocol: TCP
+          port: 8082
+    # Routage vers affaire-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: affaire-service
+      ports:
+        - protocol: TCP
+          port: 8081
+    # Routage vers controle-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: controle-service
+      ports:
+        - protocol: TCP
+          port: 8083
+    # Routage vers notification-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8085

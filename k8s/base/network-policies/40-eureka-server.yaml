@@ -1,0 +1,41 @@
+# ==============================================================================
+# eureka-server (Service Discovery) — port 8761
+# ==============================================================================
+# INGRESS : enregistrement + heartbeat + fetch-registry depuis les 6 clients
+#           Eureka (api-gateway + les 5 microservices) sur :8761.
+#           Modèle Eureka = client -> serveur (polling) : le serveur ne rappelle
+#           PAS les clients, donc aucun egress vers eux n'est nécessaire.
+# EGRESS  : DNS uniquement (policy globale 01). Eureka standalone ne sort pas.
+# Non scrapé par Prometheus (pas d'annotation prometheus.io/scrape).
+#
+# Les 6 sources sont listées via matchExpressions app In (...) : un seul bloc
+# 'from' (OR logique), port identique 8761.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eureka-server
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: eureka-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - api-gateway
+                  - user-service
+                  - plan-service
+                  - affaire-service
+                  - controle-service
+                  - notification-service
+      ports:
+        - protocol: TCP
+          port: 8761

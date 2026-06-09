@@ -1,0 +1,40 @@
+# ==============================================================================
+# mongodb — port 27017
+# ==============================================================================
+# INGRESS : seulement les consommateurs réels de la base :
+#   - user-service, plan-service, affaire-service, controle-service,
+#     notification-service (1 base par service, même instance Mongo)
+#   - mongodb-exporter (scrape des métriques via la connexion Mongo)
+#   sur :27017.
+# EGRESS  : DNS uniquement (policy globale 01). Mongo n'initie pas de trafic.
+# Non scrapé directement par Prometheus (c'est mongodb-exporter qui l'expose).
+# api-gateway et frontend NE figurent PAS ici : ils ne touchent jamais la base.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - plan-service
+                  - affaire-service
+                  - controle-service
+                  - notification-service
+                  - mongodb-exporter
+      ports:
+        - protocol: TCP
+          port: 27017

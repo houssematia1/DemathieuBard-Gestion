@@ -1,0 +1,42 @@
+# ==============================================================================
+# frontend (Nginx) — sert Angular + proxifie /api vers l'api-gateway
+# ==============================================================================
+# INGRESS  : depuis le contrôleur Ingress (namespace ingress-nginx) sur :80.
+#            C'est le seul point d'entrée nord-sud du frontend.
+# EGRESS   : uniquement vers api-gateway:8080 (proxy_pass nginx.conf).
+#            DNS couvert par la policy globale 01.
+#
+# Le frontend ne parle NI à Eureka, NI à Mongo, NI à RabbitMQ : c'est du Nginx
+# statique. On n'ouvre donc rien d'autre.
+#
+# NB : 'ingress-nginx' = namespace standard du contrôleur ingress-nginx.
+#      À adapter si ton contrôleur vit ailleurs (vérifie : kubectl get pods -A | grep ingress).
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend
+  namespace: btp-app
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8080
