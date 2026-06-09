@@ -4,7 +4,7 @@
 # INGRESS :
 #   - depuis ingress-nginx (path /api de l'Ingress)            -> :8080
 #   - depuis le frontend (nginx proxy_pass /api)               -> :8080
-#   - depuis Prometheus (ns monitoring) pour /actuator/prometheus -> :8080
+#   - depuis Prometheus (pod intra-btp-app) pour /actuator/prometheus -> :8080
 # EGRESS :
 #   - vers eureka-server:8761 (register + fetch registry)
 #   - vers chaque microservice sur son port applicatif (routage lb://)
@@ -44,9 +44,9 @@ spec:
           port: 8080
     # Scraping Prometheus
     - from:
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: monitoring
+              app.kubernetes.io/name: prometheus
       ports:
         - protocol: TCP
           port: 8080

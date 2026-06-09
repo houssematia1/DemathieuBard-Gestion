@@ -27,9 +27,9 @@ spec:
         - podSelector:
             matchLabels:
               app: api-gateway
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: monitoring
+              app.kubernetes.io/name: prometheus
       ports:
         - protocol: TCP
           port: 8085

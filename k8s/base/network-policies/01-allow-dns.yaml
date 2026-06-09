@@ -1,17 +1,23 @@
 # ==============================================================================
-# 01 — ALLOW DNS EGRESS pour TOUS les pods de btp-app
+# 01 — ALLOW DNS EGRESS — pour TOUS les pods ISOLÉS (7 métier + 4 infra)
 # ==============================================================================
-# Après le default-deny egress, AUCUN pod ne peut résoudre un nom DNS.
-# Or tout dans ce cluster passe par des noms : "mongodb", "eureka-server",
-# "rabbitmq", "api-gateway"... => sans cette règle, TOUT casse (UnknownHost).
+# Après le default-deny egress, un pod isolé ne peut plus résoudre un nom DNS.
+# Tout passe par des noms ("mongodb", "eureka-server", "rabbitmq", ...), donc
+# sans cette règle ces pods cassent (UnknownHost).
 #
-# On autorise donc l'egress de tous les pods (podSelector: {}) vers CoreDNS
-# (kube-dns) dans kube-system, sur UDP 53 ET TCP 53 (TCP requis pour les
-# réponses > 512 octets / DNS-over-TCP).
+# SCOPE (important) :
+#   - On cible les 11 pods ISOLÉS : les 7 workloads métier (couverts par le
+#     default-deny 00) + les 4 infra eureka/mongodb/rabbitmq/mongodb-exporter
+#     (isolés par leurs propres policies 40..43, qui ont policyType Egress).
+#     Ex. mongodb-exporter DOIT résoudre "mongodb" (--mongodb.uri=...@mongodb).
+#   - On EXCLUT le stack monitoring : lui accorder un egress DNS via cette policy
+#     reviendrait à le SÉLECTIONNER pour l'egress, donc à l'ISOLER
+#     (NetworkPolicy = tout pod sélectionné est isolé sur la direction). Prometheus
+#     ne pourrait alors plus scraper ni joindre l'API. Le monitoring doit rester
+#     hors de toute policy.
 #
-# Labels ciblés (vérifiés / standards K8s) :
-#   - namespace kube-system : label automatique kubernetes.io/metadata.name
-#   - pods CoreDNS          : label k8s-app=kube-dns (label par défaut CoreDNS)
+# Cible DNS : CoreDNS dans kube-system, label k8s-app=kube-dns (vérifié),
+#             UDP + TCP 53 (TCP requis pour les réponses > 512 octets).
 # ==============================================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -19,7 +25,22 @@ metadata:
   name: allow-dns-egress
   namespace: btp-app
 spec:
-  podSelector: {}
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - user-service
+          - api-gateway
+          - plan-service
+          - affaire-service
+          - controle-service
+          - notification-service
+          - frontend
+          - eureka-server
+          - mongodb
+          - rabbitmq
+          - mongodb-exporter
   policyTypes:
     - Egress
   egress:

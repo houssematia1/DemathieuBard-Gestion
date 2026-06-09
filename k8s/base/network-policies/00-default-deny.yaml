@@ -1,15 +1,21 @@
 # ==============================================================================
-# 00 — DEFAULT DENY (ingress + egress) pour TOUT le namespace btp-app
+# 00 — DEFAULT DENY (ingress + egress) — SCOPÉ AUX 7 WORKLOADS APPLICATIFS
 # ==============================================================================
-# podSelector: {}  => sélectionne TOUS les pods du namespace.
-# policyTypes Ingress+Egress sans aucune règle => tout trafic refusé par défaut.
+# CORRECTION D'ARCHITECTURE (Option A) : le stack kube-prometheus
+# (prometheus / grafana / operator / kube-state-metrics) tourne DANS le
+# namespace btp-app, pas dans un namespace `monitoring` séparé.
 #
-# À partir d'ici, plus rien ne passe SAUF ce que les policies suivantes
-# autorisent explicitement (modèle allowlist). C'est la base du least-privilege
-# réseau : on part de zéro, on ouvre au cas par cas, prouvé à l'étape 0.
+# On NE veut PAS isoler l'observabilité (composant d'infra hors périmètre de la
+# segmentation applicative). Or une policy qui sélectionne un pod l'isole sur la
+# direction concernée. On remplace donc l'ancien `podSelector: {}` (= tout le
+# namespace, monitoring compris) par un selector qui ne vise QUE les 7 workloads
+# métier (microservices + frontend).
 #
-# ATTENTION : sans la policy DNS (01) qui suit, la résolution de noms casse
-# immédiatement. Les deux doivent être appliquées ensemble.
+# Conséquence :
+#   - Les 7 services métier sont en deny-by-default (puis allowlist 10..34).
+#   - L'infra eureka/mongodb/rabbitmq/mongodb-exporter reste isolée par ses
+#     PROPRES policies (40..43), pas besoin du catch-all ici.
+#   - Le stack monitoring n'est sélectionné par AUCUNE policy => reste libre.
 # ==============================================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -17,7 +23,18 @@ metadata:
   name: default-deny-all
   namespace: btp-app
 spec:
-  podSelector: {}
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - user-service
+          - api-gateway
+          - plan-service
+          - affaire-service
+          - controle-service
+          - notification-service
+          - frontend
   policyTypes:
     - Ingress
     - Egress

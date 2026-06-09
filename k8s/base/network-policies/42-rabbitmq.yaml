@@ -4,7 +4,7 @@
 # INGRESS :
 #   - AMQP (5672) depuis les producteurs/consommateurs réels :
 #     plan-service, controle-service, notification-service.
-#   - metrics (15692) depuis Prometheus (ns monitoring).
+#   - metrics (15692) depuis Prometheus (pod intra-btp-app).
 # EGRESS  : DNS uniquement (policy globale 01).
 #
 # Le port management UI 15672 n'est ouvert à PERSONNE ici (aucun flux prouvé) :
@@ -39,9 +39,9 @@ spec:
           port: 5672
     # Scraping Prometheus du plugin rabbitmq_prometheus
     - from:
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: monitoring
+              app.kubernetes.io/name: prometheus
       ports:
         - protocol: TCP
           port: 15692

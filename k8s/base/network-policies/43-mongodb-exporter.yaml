@@ -1,7 +1,7 @@
 # ==============================================================================
 # mongodb-exporter (Percona) — port metrics 9216
 # ==============================================================================
-# INGRESS : Prometheus (ns monitoring) sur :9216 (scrape des métriques Mongo).
+# INGRESS : Prometheus (pod intra-btp-app) sur :9216 (scrape des métriques Mongo).
 # EGRESS  : mongodb:27017 (se connecte à Mongo pour collecter les stats).
 #           DNS via policy globale 01.
 # C'est un composant d'observabilité dans btp-app : sans politique dédiée, le
@@ -22,9 +22,9 @@ spec:
     - Egress
   ingress:
     - from:
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: monitoring
+              app.kubernetes.io/name: prometheus
       ports:
         - protocol: TCP
           port: 9216

@@ -28,9 +28,9 @@ spec:
         - podSelector:
             matchLabels:
               app: controle-service
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: monitoring
+              app.kubernetes.io/name: prometheus
       ports:
         - protocol: TCP
           port: 8082
