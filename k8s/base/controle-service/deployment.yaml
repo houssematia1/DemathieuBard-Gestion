@@ -19,6 +19,8 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8083"
     spec:
+      serviceAccountName: controle-service-sa
+      automountServiceAccountToken: false
       containers:
         - name: controle-service
           image: controle-service:latest

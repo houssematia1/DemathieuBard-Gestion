@@ -19,6 +19,8 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8084"
     spec:
+      serviceAccountName: user-service-sa
+      automountServiceAccountToken: false
       containers:
         - name: user-service
           image: btp-user-service:latest

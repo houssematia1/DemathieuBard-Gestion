@@ -19,6 +19,8 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8080"
     spec:
+      serviceAccountName: api-gateway-sa
+      automountServiceAccountToken: false
       containers:
         - name: api-gateway
           image: btp-api-gateway:latest

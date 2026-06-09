@@ -19,6 +19,8 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8081"
     spec:
+      serviceAccountName: affaire-service-sa
+      automountServiceAccountToken: false
       containers:
         - name: affaire-service
           image: affaire-service:latest
