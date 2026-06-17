@@ -1,0 +1,38 @@
+# ==============================================================================
+# APPLICATION ENFANT — Stack applicative BTP (overlay dev)
+# ------------------------------------------------------------------------------
+# Pointe sur k8s/overlays/dev : EXACTEMENT l'unité Kustomize validée
+# (kubectl kustomize k8s/overlays/dev = 60 ressources). Aucune divergence
+# possible entre ce que rend kubectl et ce qu'applique Argo CD.
+#
+# /!\ SealedSecrets : AUCUN namePrefix / nameSuffix / changement de namespace.
+#     Argo applique les CRs SealedSecret tels quels => le scope strict
+#     (name+namespace=btp-app) reste valide et le controller (kube-system)
+#     les déchiffre. Le controller lui-même reste hors GitOps (bootstrap).
+#
+# syncPolicy : MANUEL pour la 1re sync (voir le diff, adoption non destructive
+# des ressources déjà présentes dans btp-app). Auto-sync + prune activés
+# seulement APRÈS validation.
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: btp-app-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/houssematia1/DemathieuBard-Gestion.git
+    targetRevision: main
+    path: k8s/overlays/dev      # Argo détecte le kustomization.yaml automatiquement
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: btp-app          # namespace cible (déjà créé par base/namespace)
+  # PAS de syncPolicy.automated => sync MANUELLE. Pas de prune tant que non validé :
+  # garantit qu'aucune ressource existante ne sera supprimée par erreur.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false   # le namespace btp-app existe déjà
+      # - ServerSideApply=true  # (option) utile si conflits de field-manager à l'adoption

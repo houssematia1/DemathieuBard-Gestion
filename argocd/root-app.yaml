@@ -1,0 +1,36 @@
+# ==============================================================================
+# APP-OF-APPS — Application RACINE
+# ------------------------------------------------------------------------------
+# Cette Application ne déploie AUCUNE ressource applicative directement : elle
+# pointe sur le dossier argocd/apps/ du repo, qui contient les Applications
+# ENFANTS. Synchroniser root-app => Argo CD crée/maj les Applications enfants.
+# C'est le pattern "App-of-Apps" : un seul point d'entrée versionné qui gère
+# la flotte d'Applications.
+#
+# syncPolicy : MANUEL volontairement (pas d'automated) pour la 1re sync — on veut
+# voir le diff avant que quoi que ce soit s'applique. Auto-sync activé APRÈS
+# validation (cf. rapport).
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  # finalizer : à la suppression de root-app, Argo nettoie en cascade les enfants
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/houssematia1/DemathieuBard-Gestion.git
+    targetRevision: main
+    path: argocd/apps
+    directory:
+      recurse: true          # lit tous les manifests Application sous argocd/apps/
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd        # les objets Application vivent dans le namespace argocd
+  # PAS de syncPolicy.automated => sync MANUELLE pour la première fois.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
