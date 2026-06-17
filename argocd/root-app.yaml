@@ -22,7 +22,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/houssematia1/DemathieuBard-Gestion.git
+    repoURL: git@github.com:houssematia1/DemathieuBard-Gestion.git
     targetRevision: main
     path: argocd/apps
     directory:

@@ -24,7 +24,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/houssematia1/DemathieuBard-Gestion.git
+    repoURL: git@github.com:houssematia1/DemathieuBard-Gestion.git
     targetRevision: main
     path: k8s/overlays/dev      # Argo détecte le kustomization.yaml automatiquement
   destination:
