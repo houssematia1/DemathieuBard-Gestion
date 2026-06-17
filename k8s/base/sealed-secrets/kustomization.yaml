@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# SealedSecrets chiffrés (scope strict name+namespace=btp-app).
+# Ne JAMAIS déchiffrer/régénérer ici : le rendu Kustomize les passe tels quels.
+# Préfixe "sealed-" obligatoire : exception .gitignore (!**/sealed-*.yaml) qui
+# autorise le commit des SealedSecrets chiffrés tout en bloquant les secrets en clair.
+resources:
+  - sealed-affaire-service-secret.yaml
+  - sealed-controle-service-secret.yaml
+  - sealed-mongodb-secret.yaml
+  - sealed-notification-service-secret.yaml
+  - sealed-plan-service-secret.yaml
+  - sealed-rabbitmq-secret.yaml
+  - sealed-jwt-secret.yaml
+  - sealed-user-service-secret.yaml
