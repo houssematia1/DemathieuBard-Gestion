@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ==============================================================================
+# OVERLAY DEV — ACTIF (cluster Docker Desktop, namespace btp-app)
+# ------------------------------------------------------------------------------
+# C'est l'overlay réellement déployé aujourd'hui. Il ne fait QUE référencer le
+# base et forcer le namespace : aucun patch d'image/replicas/ressources, car
+# l'environnement dev consomme les manifests tels quels.
+#
+#   Rendu  : kubectl kustomize k8s/overlays/dev
+#   Déploi : kubectl apply -k k8s/overlays/dev   (lancé manuellement, jamais auto)
+# ==============================================================================
+
+resources:
+  - ../../base
+
+# Le namespace est déjà codé en dur dans chaque manifest. On le re-déclare ici
+# comme filet de sécurité Kustomize : il s'impose à toutes les ressources et
+# garantit la cohérence avec le scope STRICT des SealedSecrets (name+namespace).
+# /!\ Ne PAS changer ce namespace : les SealedSecrets ne se déchiffreraient plus.
+namespace: btp-app

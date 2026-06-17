@@ -1,0 +1,62 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ==============================================================================
+# OVERLAY CLOUD — SQUELETTE (NON activé)
+# ------------------------------------------------------------------------------
+# Cible : un cluster managé (EKS / AKS / GKE). Cet overlay est un point de départ
+# DOCUMENTÉ pour la migration cloud. Tous les patches sont en TODO commentés :
+# AUCUNE valeur n'est inventée ici tant que la cible cloud n'est pas décidée.
+#
+# Tant que les TODO ne sont pas remplis, cet overlay rend les mêmes manifests
+# que le base. NE PAS déployer en l'état.
+# ==============================================================================
+
+resources:
+  - ../../base
+
+namespace: btp-app
+# /!\ Si on change de namespace en cloud, il faut RE-SCELLER tous les SealedSecrets
+#     avec la clé publique du nouveau cluster (scope strict name+namespace).
+#     Voir sealed-secrets-migration. Ne pas se contenter de modifier ce champ.
+
+# ------------------------------------------------------------------------------
+# TODO migration cloud — à remplir lorsque la cible (EKS/AKS) sera arrêtée :
+# ------------------------------------------------------------------------------
+#
+# 1) REGISTRY D'IMAGES — repointer les images locales vers un registry cloud
+#    (ECR / ACR / GHCR) au lieu des images "latest" buildées en local.
+# images:
+#   - name: btp/affaire-service
+#     newName: <account>.dkr.ecr.<region>.amazonaws.com/btp/affaire-service
+#     newTag: <version-immuable>   # surtout pas "latest" en prod
+#   # ... idem pour les 7 workloads + frontend
+#
+# 2) REPLICAS — passer en HA (≥2) les services stateless derrière le gateway.
+# replicas:
+#   - name: api-gateway
+#     count: 2
+#   - name: frontend
+#     count: 2
+#   # mongodb/rabbitmq : NE PAS scaler ici (stateful) -> opérateur/StatefulSet dédié.
+#
+# 3) RESSOURCES — relever requests/limits CPU/mémoire via un patch par workload.
+# patches:
+#   - target: { kind: Deployment, name: api-gateway }
+#     path: patches/api-gateway-resources.yaml   # (à créer)
+#
+# 4) STORAGECLASS — les PVC (mongodb, plan-service) utilisent la SC par défaut de
+#    Docker Desktop (hostpath). En cloud, forcer une SC managée (gp3 / managed-csi).
+# patches:
+#   - target: { kind: PersistentVolumeClaim }
+#     patch: |-
+#       - op: add
+#         path: /spec/storageClassName
+#         value: <gp3 | managed-csi | ...>
+#
+# 5) INGRESS — adapter ingressClassName + host + TLS (cert-manager) au cloud.
+#    Docker Desktop utilise l'ingress-nginx local ; en cloud, ALB/AGIC + DNS réel.
+#
+# 6) MONITORING — reste hors Kustomize (Helm). En cloud, adapter k8s/monitoring/
+#    values.yaml (storage Prometheus, retention, alertmanager).
+# ------------------------------------------------------------------------------

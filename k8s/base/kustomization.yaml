@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ==============================================================================
+# BASE Kustomize — Plateforme BTP (Demathieu & Bard)
+# ------------------------------------------------------------------------------
+# Agrège l'ENSEMBLE des manifests applicatifs déployables de la plateforme.
+# Ce base est neutre : il ne fixe ni l'environnement ni de patch.
+# Les overlays (overlays/dev = actif, overlays/cloud = squelette) le référencent.
+#
+# Hors de ce base (volontairement) :
+#   - Monitoring kube-prometheus-stack -> géré par Helm (k8s/monitoring/values.yaml)
+#   - rabbitmq-prometheus-plugin (ConfigMap monitoring) -> k8s/monitoring/
+# ==============================================================================
+
+resources:
+  # --- Socle ---
+  - namespace
+  - sealed-secrets        # SealedSecrets chiffrés (déchiffrés in-cluster par le controller)
+  - rbac                  # ServiceAccounts dédiés zéro-permission
+
+  # --- Infrastructure ---
+  - infra                 # eureka, mongodb, rabbitmq, mongodb-exporter
+
+  # --- Workloads applicatifs (7) ---
+  - frontend
+  - api-gateway
+  - affaire-service
+  - controle-service
+  - notification-service
+  - plan-service
+  - user-service
+
+  # --- Réseau & exposition ---
+  - network-policies      # default-deny + allowlist
+  - ingress
