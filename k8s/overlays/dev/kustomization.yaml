@@ -14,6 +14,7 @@ kind: Kustomization
 
 resources:
   - ../../base
+  - sealed-secrets        # SealedSecrets scellés pour Docker Desktop (clé sealed-secrets-keyr9hz5)
 
 # Le namespace est déjà codé en dur dans chaque manifest. On le re-déclare ici
 # comme filet de sécurité Kustomize : il s'impose à toutes les ressources et

@@ -16,8 +16,11 @@ kind: Kustomization
 resources:
   # --- Socle ---
   - namespace
-  - sealed-secrets        # SealedSecrets chiffrés (déchiffrés in-cluster par le controller)
   - rbac                  # ServiceAccounts dédiés zéro-permission
+  # NOTE : les SealedSecrets ont QUITTÉ le base — ils sont spécifiques au cluster
+  # (clé publique du controller propre à chaque cluster ; scope strict name+namespace).
+  # Chaque overlay fournit les siens : overlays/dev/sealed-secrets (Docker Desktop),
+  # overlays/cloud/sealed-secrets (k3s). Cf. cloud/PHASE-CLOUD-REPORT.md.
 
   # --- Infrastructure ---
   - infra                 # eureka, mongodb, rabbitmq, mongodb-exporter

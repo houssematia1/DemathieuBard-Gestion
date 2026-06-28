@@ -5,6 +5,7 @@ kind: Kustomization
 # Préfixe "sealed-" obligatoire : exception .gitignore (!**/sealed-*.yaml) qui
 # autorise le commit des SealedSecrets chiffrés tout en bloquant les secrets en clair.
 resources:
+  - sealed-anthropic-secret.yaml
   - sealed-affaire-service-secret.yaml
   - sealed-controle-service-secret.yaml
   - sealed-mongodb-secret.yaml

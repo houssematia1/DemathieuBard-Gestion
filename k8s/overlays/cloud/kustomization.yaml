@@ -2,61 +2,66 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # ==============================================================================
-# OVERLAY CLOUD — SQUELETTE (NON activé)
+# OVERLAY CLOUD — ACTIF (cluster k3s single-node sur EC2, CNI Calico, ns btp-app)
 # ------------------------------------------------------------------------------
-# Cible : un cluster managé (EKS / AKS / GKE). Cet overlay est un point de départ
-# DOCUMENTÉ pour la migration cloud. Tous les patches sont en TODO commentés :
-# AUCUNE valeur n'est inventée ici tant que la cible cloud n'est pas décidée.
+# Cible réelle : k3s v1.35 sur EC2 Ubuntu 22.04 (eu-west-3), endpoint stable via
+# Elastic IP. Différences avec overlays/dev (Docker Desktop) :
+#   - Images tirées de Docker Hub elhoussatia/* (tag immuable), PAS d'images locales.
+#   - StorageClass forcée à local-path (provisioner par défaut de k3s).
+#   - SealedSecrets RE-SCELLÉS pour la clé du controller k3s (cf. sealed-secrets/).
 #
-# Tant que les TODO ne sont pas remplis, cet overlay rend les mêmes manifests
-# que le base. NE PAS déployer en l'état.
+#   Rendu  : kubectl kustomize k8s/overlays/cloud
+#   Déploi : via Argo CD (Application btp-app-cloud), sync manuel d'abord.
 # ==============================================================================
 
 resources:
   - ../../base
+  - sealed-secrets        # 9 SealedSecrets scellés pour k3s (clé sealed-secrets-keygk4wb)
 
+# Namespace cohérent avec le scope STRICT des SealedSecrets (name+namespace=btp-app).
+# /!\ Changer ce namespace invaliderait le déchiffrement des SealedSecrets.
 namespace: btp-app
-# /!\ Si on change de namespace en cloud, il faut RE-SCELLER tous les SealedSecrets
-#     avec la clé publique du nouveau cluster (scope strict name+namespace).
-#     Voir sealed-secrets-migration. Ne pas se contenter de modifier ce champ.
 
 # ------------------------------------------------------------------------------
-# TODO migration cloud — à remplir lorsque la cible (EKS/AKS) sera arrêtée :
+# IMAGES — repointe les images locales (dev) vers Docker Hub elhoussatia/*.
+# Tag immuable (git SHA) — surtout PAS "latest" pour la reproductibilité.
 # ------------------------------------------------------------------------------
-#
-# 1) REGISTRY D'IMAGES — repointer les images locales vers un registry cloud
-#    (ECR / ACR / GHCR) au lieu des images "latest" buildées en local.
-# images:
-#   - name: btp/affaire-service
-#     newName: <account>.dkr.ecr.<region>.amazonaws.com/btp/affaire-service
-#     newTag: <version-immuable>   # surtout pas "latest" en prod
-#   # ... idem pour les 7 workloads + frontend
-#
-# 2) REPLICAS — passer en HA (≥2) les services stateless derrière le gateway.
-# replicas:
-#   - name: api-gateway
-#     count: 2
-#   - name: frontend
-#     count: 2
-#   # mongodb/rabbitmq : NE PAS scaler ici (stateful) -> opérateur/StatefulSet dédié.
-#
-# 3) RESSOURCES — relever requests/limits CPU/mémoire via un patch par workload.
-# patches:
-#   - target: { kind: Deployment, name: api-gateway }
-#     path: patches/api-gateway-resources.yaml   # (à créer)
-#
-# 4) STORAGECLASS — les PVC (mongodb, plan-service) utilisent la SC par défaut de
-#    Docker Desktop (hostpath). En cloud, forcer une SC managée (gp3 / managed-csi).
-# patches:
-#   - target: { kind: PersistentVolumeClaim }
-#     patch: |-
-#       - op: add
-#         path: /spec/storageClassName
-#         value: <gp3 | managed-csi | ...>
-#
-# 5) INGRESS — adapter ingressClassName + host + TLS (cert-manager) au cloud.
-#    Docker Desktop utilise l'ingress-nginx local ; en cloud, ALB/AGIC + DNS réel.
-#
-# 6) MONITORING — reste hors Kustomize (Helm). En cloud, adapter k8s/monitoring/
-#    values.yaml (storage Prometheus, retention, alertmanager).
+images:
+  - name: affaire-service
+    newName: elhoussatia/affaire-service
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  - name: controle-service
+    newName: elhoussatia/controle-service
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  - name: notification-service
+    newName: elhoussatia/notification-service
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  - name: btp-api-gateway
+    newName: elhoussatia/api-gateway
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  - name: btp-plan
+    newName: elhoussatia/plan-service
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  - name: btp-user-service
+    newName: elhoussatia/user-service
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  - name: btp-frontend
+    newName: elhoussatia/frontend
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  - name: btp-eureka-server
+    newName: elhoussatia/eureka-server
+    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+  # Infra (mongo, rabbitmq, mongodb-exporter) = images publiques, non repointées.
+
 # ------------------------------------------------------------------------------
+# STORAGECLASS — k3s provisionne via local-path (hostPath dynamique sur le node).
+# On la force explicitement sur tous les PVC (mongodb-pvc, plan-uploads-pvc) au
+# lieu de dépendre de la SC par défaut (portabilité du manifest).
+# ------------------------------------------------------------------------------
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+    patch: |-
+      - op: add
+        path: /spec/storageClassName
+        value: local-path

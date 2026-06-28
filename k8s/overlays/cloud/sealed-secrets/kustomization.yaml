@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# ==============================================================================
+# SealedSecrets RE-SCELLÉS pour le cluster k3s (EC2) — scope strict name+namespace.
+# ------------------------------------------------------------------------------
+# Ces fichiers sont chiffrés avec la clé PUBLIQUE du controller k3s
+# (sealed-secrets-keygk4wb), DIFFÉRENTE de celle de Docker Desktop
+# (sealed-secrets-keyr9hz5). Ils ne sont donc PAS interchangeables avec ceux de
+# overlays/dev : un SealedSecret n'est pas portable entre clusters (c'est voulu).
+#   Régénération : kubeseal --fetch-cert sur k3s + re-scellement depuis
+#   secrets.local.txt (cf. cloud/PHASE-CLOUD-REPORT.md).
+# Préfixe "sealed-" obligatoire : exception .gitignore qui autorise le commit des
+# SealedSecrets chiffrés tout en bloquant les secrets en clair.
+# ==============================================================================
+resources:
+  - sealed-anthropic-secret.yaml
+  - sealed-affaire-service-secret.yaml
+  - sealed-controle-service-secret.yaml
+  - sealed-mongodb-secret.yaml
+  - sealed-notification-service-secret.yaml
+  - sealed-plan-service-secret.yaml
+  - sealed-rabbitmq-secret.yaml
+  - sealed-jwt-secret.yaml
+  - sealed-user-service-secret.yaml

@@ -1,0 +1,37 @@
+# ==============================================================================
+# APPLICATION — Stack applicative BTP (overlay CLOUD, cluster k3s sur EC2)
+# ------------------------------------------------------------------------------
+# Pointe sur k8s/overlays/cloud : l'unité Kustomize re-scellée pour k3s
+# (images elhoussatia/*, storageClass local-path, SealedSecrets clé k3s).
+# Application AUTONOME (pas d'app-of-apps sur ce cluster) : un seul point d'entrée.
+#
+# /!\ Ce manifeste vit sur le cluster k3s (namespace argocd de k3s), PAS sur
+#     Docker Desktop. Il ne remplace pas btp-app-dev.yaml (qui reste l'app dev).
+#
+# repoURL identique à dev MAIS Argo k3s s'authentifie avec SA PROPRE deploy key
+# (secret repo-btp-cloud, clé argocd-k3s-deploy) — une clé par cluster.
+#
+# syncPolicy : MANUEL pour la 1re sync. Cluster k3s VIERGE => Argo va tout CRÉER
+# (contrairement à dev où il adoptait l'existant). On vérifie le diff/preview
+# avant. Auto-sync + prune activés seulement APRÈS validation.
+# ==============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: btp-app-cloud
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:houssematia1/DemathieuBard-Gestion.git
+    targetRevision: main
+    path: k8s/overlays/cloud     # Argo détecte le kustomization.yaml automatiquement
+  destination:
+    server: https://kubernetes.default.svc   # le cluster k3s lui-même (in-cluster)
+    namespace: btp-app
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false    # le namespace btp-app est créé par base/namespace
+      # - ServerSideApply=true   # (option) à activer si conflits de field-manager
