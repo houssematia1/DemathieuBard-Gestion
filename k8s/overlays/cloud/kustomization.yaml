@@ -16,7 +16,9 @@ kind: Kustomization
 
 resources:
   - ../../base
-  - sealed-secrets        # 9 SealedSecrets scellés pour k3s (clé sealed-secrets-keygk4wb)
+  - sealed-secrets               # 9 SealedSecrets scellés pour k3s (clé sealed-secrets-keygk4wb)
+  - rabbitmq-enabled-plugins.yaml # ConfigMap requise par le Deployment rabbitmq du base
+                                  # (vit dans monitoring/, absente du cluster k3s vierge)
 
 # Namespace cohérent avec le scope STRICT des SealedSecrets (name+namespace=btp-app).
 # /!\ Changer ce namespace invaliderait le déchiffrement des SealedSecrets.

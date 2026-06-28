@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-enabled-plugins
+  namespace: btp-app
+# ------------------------------------------------------------------------------
+# Le Deployment rabbitmq du base monte cette ConfigMap en OBLIGATOIRE
+# (Optional: false) sur /etc/rabbitmq/enabled_plugins. Or elle vit normalement
+# dans la couche monitoring (k8s/monitoring/rabbitmq-prometheus-plugin.yaml),
+# exclue du base. Sur Docker Desktop elle est appliquée à part ; sur le cluster
+# k3s VIERGE elle manquait -> rabbitmq restait en ContainerCreating (FailedMount).
+# On la vendore donc dans l'overlay cloud pour rendre la stack AUTONOME, sans
+# dépendre du déploiement séparé du monitoring.
+# ------------------------------------------------------------------------------
+data:
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_prometheus].
