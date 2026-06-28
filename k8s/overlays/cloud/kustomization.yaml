@@ -49,7 +49,10 @@ images:
     newTag: 88da32bbad6d57c8adde03c3692379336790eed6
   - name: btp-frontend
     newName: elhoussatia/frontend
-    newTag: 88da32bbad6d57c8adde03c3692379336790eed6
+    # Tag 88da32… était une build CASSÉE (Angular dans un sous-dossier + nginx par
+    # défaut → page "Welcome to nginx"). Rebuild depuis le Dockerfile corrigé
+    # (browser/ copié au webroot + nginx.conf SPA). Cf. PHASE-CLOUD-REPORT §3.3.
+    newTag: cloud-20260629
   - name: btp-eureka-server
     newName: elhoussatia/eureka-server
     newTag: 88da32bbad6d57c8adde03c3692379336790eed6
